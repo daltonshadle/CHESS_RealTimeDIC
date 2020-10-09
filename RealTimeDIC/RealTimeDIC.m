@@ -126,12 +126,3 @@ if save_stress_strain
     save('strain_yy.mat', 'strain_yy')
     save('stress.mat', 'stress')
 end
-
-%% External Notes
-% DIC Starts and stops
-% --------------------
-% dic_start = 3067;
-% dic_c1_start = 3205;
-% dic_c6_end = 4344;
-% dic_dis_ctrl_start = 4355;
-% dic_dis_ctrl_end = 4535;
