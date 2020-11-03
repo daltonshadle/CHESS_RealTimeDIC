@@ -1,4 +1,4 @@
-function [par_file, file_mat]=ProcessDicParFile()
+function [par_file, file_mat]=ProcessDicParFile(base_path)
 % ProcessDicParFile - Used to load and extract data from .par file.
 % 
 %   AUTHOR:  Carmen Fang, Chris Budrow
@@ -37,7 +37,7 @@ function [par_file, file_mat]=ProcessDicParFile()
 %
 
 % open UI file direcotry for selecting dic.par file
-[par_file.name, par_file.dir] = uigetfile('*.par','Open dic.par File');
+[par_file.name, par_file.dir] = uigetfile([base_path, '*.par'],'Open dic.par File');
 par_file.full_name = [par_file.dir par_file.name];
 
 % Load in .par file and save information to File

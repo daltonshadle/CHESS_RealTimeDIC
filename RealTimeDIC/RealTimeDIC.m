@@ -24,6 +24,7 @@ grid_spacing = 40; % spacing of correlation points
 fixed_corr_dimen = [60, 120]; % (pixels) fixed correlation area dimensions for control point [height, width]
 moving_sub_dimen = [40, 40]; % (pixels) moving subregion area dimensions for control point [height, width]
 output_filename='dp_718_2_fatigue.txt';
+base_path = 'C:\Users\Dalton Shadle\GitHub\CHESS_RealTimeDIC\example\';
 
 % Sample Geometry
 sample_width = 1; % (mm) cross-sectional width of the smaple for macro stress calculations
@@ -33,7 +34,7 @@ sample_thickness = 1; % (mm) cross-sectional thickness of the smaple for macro s
 save_stress_strain = true;
 
 %% select the dic.par file for current sample, contains image index, force, and screw position
-[par_file, file_mat] = ProcessDicParFile();
+[par_file, file_mat] = ProcessDicParFile(base_path);
 
 %% select the reference image
 [image_struct, first_image_index, first_image_struct] = SelectFirstImage(file_mat, par_file.dir);
