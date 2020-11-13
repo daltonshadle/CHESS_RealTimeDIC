@@ -68,4 +68,5 @@ image_struct.extension = first_image_struct.name(dot_pos : end);
 % Find the location in 'File' of the selected image
 image_num = first_image_struct.name(dash_pos+1 : dot_pos-1);
 first_image_index = find(file_mat(:,1) == str2double(image_num));
+first_image_struct.file_mat_index = first_image_index;
 end

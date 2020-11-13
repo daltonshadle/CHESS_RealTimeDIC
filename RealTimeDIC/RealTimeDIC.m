@@ -21,10 +21,10 @@ clc; clear;
 
 % DIC Parameters
 grid_spacing = 40; % spacing of correlation points
-fixed_corr_dimen = [60, 120]; % (pixels) fixed correlation area dimensions for control point [height, width]
+fixed_corr_dimen = [80, 150]; % (pixels) fixed correlation area dimensions for control point [height, width]
 moving_sub_dimen = [40, 40]; % (pixels) moving subregion area dimensions for control point [height, width]
-output_filename='dp_718_2_fatigue.txt';
-base_path = 'C:\Users\Dalton Shadle\GitHub\CHESS_RealTimeDIC\example\';
+output_filename='al-lt-1-ss.txt';
+base_path = '/nfs/chess/raw/cycles/2020-3/id3a/pagan-1108-1/';
 
 % Sample Geometry
 sample_width = 1; % (mm) cross-sectional width of the smaple for macro stress calculations
@@ -37,6 +37,7 @@ save_stress_strain = true;
 [par_file, file_mat] = ProcessDicParFile(base_path);
 
 %% select the reference image
+% START DIC AT dic_002013
 [image_struct, first_image_index, first_image_struct] = SelectFirstImage(file_mat, par_file.dir);
 
 %% generate grid from the first reference image
@@ -92,8 +93,8 @@ for i=1:num_images
     stress(i) = file_mat(image_indices(i),2)/(sample_area);
     
     % write to output file
-    output=[file_mat(image_indices(i),1),stress(i),strain_xx(i),strain_yy(i),strain_xy(i)];
-    dlmwrite(output_filename,output,'delimiter','\t','precision','%.6f','-append')
+    output=[file_mat(image_indices(i),1), stress(i), strain_xx(i), strain_yy(i), strain_xy(i), file_mat(i, 3)];
+    dlmwrite(output_filename,output,'delimiter','\t','precision','%.6f','-append');
     
     % display to screen
     disp(['File: ' num2str(i) ', Image: ' num2str(file_mat(image_indices(i),1))])
@@ -110,6 +111,7 @@ xlabel('Macroscopic Strain')
 ylabel('Macroscopic Stress (MPa)')
 grid on
 
+
 %% process the rest of the images in a while loop --> built-in while loop in "Continuous Update"
 % ASSUMES THAT YOU HAVE ALREADY PROCESSED ALL THE DATA THAT YOU HAVE
 hold on
@@ -122,8 +124,8 @@ grid on
 
 %% Save stress and strain values
 if save_stress_strain
-    save('strain_xx.mat', 'strain_xx')
-    save('strain_xy.mat', 'strain_xy')
-    save('strain_yy.mat', 'strain_yy')
-    save('stress.mat', 'stress')
+    save('dp718-1__strain_xx.mat', 'strain_xx')
+    save('dp718-1_strain_xy.mat', 'strain_xy')
+    save('dp718-1_strain_yy.mat', 'strain_yy')
+    save('dp718-1_stress.mat', 'stress')
 end

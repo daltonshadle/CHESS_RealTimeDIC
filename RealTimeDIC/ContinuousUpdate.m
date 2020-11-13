@@ -104,6 +104,7 @@ pre_number_name = image_struct.leader;
 image_extension = image_struct.extension;
 first_image_full_name = first_image_struct.full_name;
 image_folder = first_image_struct.folder;
+first_img_index = first_image_struct.file_mat_index;
 
 % init dic.par file information
 [file_mat] = OpenDicParFile(par_file_full_name);
@@ -114,14 +115,14 @@ run=1;
 ref_struct = struct();
 ref_struct.valid_x = valid_ref_x;
 ref_struct.valid_y = valid_ref_y;
-ref_struct.screw_pos = file_mat(1,3);
+ref_struct.screw_pos = file_mat(first_img_index,3);
 ref_struct.stress = 0;
 ref_struct.strain_xx = 0;
 
 ten_struct = struct();
 ten_struct.valid_x = valid_x;
 ten_struct.valid_y = valid_y;
-ten_struct.screw_pos = file_mat(1,3);
+ten_struct.screw_pos = file_mat(first_img_index,3);
 ten_struct.stress = 0;
 ten_struct.strain_xx = 0;
 ten_struct.is_set = false;
@@ -129,13 +130,13 @@ ten_struct.is_set = false;
 comp_struct = struct();
 comp_struct.valid_x = valid_x;
 comp_struct.valid_y = valid_y;
-comp_struct.screw_pos = file_mat(1,3);
+comp_struct.screw_pos = file_mat(first_img_index,3);
 comp_struct.stress = 0;
 comp_struct.strain_xx = 0;
 comp_struct.is_set = false;
 
-upper_screw_bound = file_mat(1,3);
-lower_screw_bound = file_mat(1,3);
+upper_screw_bound = file_mat(first_img_index,3);
+lower_screw_bound = file_mat(first_img_index,3);
 
 hold on
 fprintf('Ref Screw Pos: %0.6f\n', ref_struct.screw_pos);
@@ -338,7 +339,7 @@ tbtn_boundary_mode = uicontrol(btn_group_mode,...
 % Make the uibuttongroup visible after creating child objects
 btn_group_mode.Visible = 'off';
 set(btn_group_mode,'SelectedObject',tbtn_incremental_mode);
-function BtnSwitchModeCB(src, event)
+function BtnSwitchModeCB(src, ~)
    mode = tbtn_boundary_mode.Value;
    if mode == BOUNDARY_MODE
        mode_str = boundary_btn_name;
@@ -385,7 +386,6 @@ function BtnAdjustCorrDimen(src, event)
     [fixed_corr_dimen, moving_sub_dimen] = ...
     AdjustCorrDimen(first_image_struct.full_name, grid_x, grid_y, fixed_corr_dimen, moving_sub_dimen);
     
-    %fixed_corr_dimen(1) = round(get(slider_fixed_height,'value'));
     txt_fixed_height.String = sprintf('Fix Height: %i', fixed_corr_dimen(1));
     txt_fixed_width.String = sprintf('Fix Width: %i', fixed_corr_dimen(2));
     txt_moving_height.String = sprintf('Move Height: %i', moving_sub_dimen(1));
@@ -412,6 +412,7 @@ txt_backoff_stress = uicontrol(group_backoff_btn,...
 
 function BtnCalcBackoffStress(src, event)
     txt_backoff_stress.String = sprintf('Backoff Stress: %0.3f MPa', curr_stress * 0.9);
+    disp(fprintf('Backoff Stress: %0.3f MPa', curr_stress * 0.9));
 end
 
 
@@ -459,14 +460,16 @@ while(run==1)
     curr_strain_yy = FitStrain(valid_ref_y, (valid_y-valid_ref_y));
     curr_strain_xy = (FitStrain(valid_ref_x, (valid_y-valid_ref_y))+FitStrain(valid_ref_y, (valid_x-valid_ref_x)))/2;
     curr_stress = file_mat(new_index,2)/(sample_area);
-
-    output=[file_mat(new_index,1),curr_stress,curr_strain_xx,curr_strain_yy,curr_strain_xy];
-
-    dlmwrite(output_filename,output,'delimiter','\t','precision','%.6f','-append')
+    
+    % write to output file
+    output=[file_mat(new_index,1), curr_stress, curr_strain_xx, curr_strain_yy, curr_strain_xy, curr_screw_pos];
+    dlmwrite(output_filename,output,'delimiter','\t','precision','%.6f','-append');
+    
     prev_index = new_index;
     drawnow
     plot(curr_strain_xx, curr_stress,'d','MarkerFaceColor','b','MarkerEdgeColor','k');
     title(sprintf('Current Stress = %0.3fMPa    |    Current Strain = %0.3f%%    |    Current Screw = %0.5f', curr_stress, curr_strain_xx*100, curr_screw_pos), 'FontSize', 15);
+    disp(fprintf('Current Stress = %0.3fMPa | Current Strain = %0.3f%% | Current Screw = %0.5f', curr_stress, curr_strain_xx*100, curr_screw_pos));
     drawnow
     clear title  
     
