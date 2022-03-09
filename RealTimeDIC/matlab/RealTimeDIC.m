@@ -20,11 +20,11 @@ clc; clear;
 %% user input paramters
 
 % DIC Parameters
-grid_spacing = 40; % spacing of correlation points
+grid_spacing = 80; % spacing of correlation points
 fixed_corr_dimen = [80, 150]; % (pixels) fixed correlation area dimensions for control point [height, width]
 moving_sub_dimen = [40, 40]; % (pixels) moving subregion area dimensions for control point [height, width]
-output_filename='al-lt-1-ss.txt';
-base_path = '/nfs/chess/raw/cycles/2020-3/id3a/pagan-1108-1/';
+output_filename = "dp718-1_nov2020.txt";
+base_path = "/media/djs522/djs522_nov2020/chess_2020_11/dp718-1/";
 
 % Sample Geometry
 sample_width = 1; % (mm) cross-sectional width of the smaple for macro stress calculations
@@ -37,7 +37,7 @@ save_stress_strain = true;
 [par_file, file_mat] = ProcessDicParFile(base_path);
 
 %% select the reference image
-% START DIC AT dic_002013
+% START DIC AT dic_002013, dic_003215
 [image_struct, first_image_index, first_image_struct] = SelectFirstImage(file_mat, par_file.dir);
 
 %% generate grid from the first reference image
@@ -47,6 +47,10 @@ save_stress_strain = true;
 %% calculate stress and strain
 % Need to process up until the second to last image. Then save all of that
 % data off so it can be loaded in by the real time program.
+
+% booleans for doing reference processing and double processing of dic
+reference_process = false;
+double_process = false;
 
 % calculate smaple cross-sectional area for stress calculations
 sample_area = sample_width*sample_thickness;
@@ -80,7 +84,17 @@ for i=1:num_images
         valid_x = valid_ref_x;
         valid_y = valid_ref_y;
     else
-        % process the rest of the images
+        % process the rest of the images, double processing, if necessary
+        if reference_process
+            [valid_x, valid_y] = ProcessCorrelations(...
+                first_image_struct.full_name, curr_image_full_name, ...
+                grid_x, grid_y, grid_x, grid_y, fixed_corr_dimen, moving_sub_dimen);
+        end
+        if double_process
+            [valid_x, valid_y] = ProcessCorrelations(...
+                first_image_struct.full_name, curr_image_full_name, ...
+                grid_x, grid_y, valid_x, valid_y, fixed_corr_dimen, moving_sub_dimen);
+        end
         [valid_x, valid_y] = ProcessCorrelations(...
             first_image_struct.full_name, curr_image_full_name, ...
             grid_x, grid_y, valid_x, valid_y, fixed_corr_dimen, moving_sub_dimen);
@@ -124,8 +138,8 @@ grid on
 
 %% Save stress and strain values
 if save_stress_strain
-    save('dp718-1__strain_xx.mat', 'strain_xx')
-    save('dp718-1_strain_xy.mat', 'strain_xy')
-    save('dp718-1_strain_yy.mat', 'strain_yy')
-    save('dp718-1_stress.mat', 'stress')
+    save('ss718-1_strain_xx.mat', 'strain_xx')
+    save('ss718-1_strain_xy.mat', 'strain_xy')
+    save('ss718-1_strain_yy.mat', 'strain_yy')
+    save('ss718-1_stress.mat', 'stress')
 end
