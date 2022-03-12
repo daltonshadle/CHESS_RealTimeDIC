@@ -28,41 +28,18 @@ Created on Tue Mar  8 14:57:43 2022
 #%% ***************************************************************************
 # IMPORTS
 import os
-import glob
-import time
 import numpy as np
 
-try:
-    import dill as cpl
-except(ImportError):
-    import pickle as cpl
+import pickle
 
-import yaml
-
-import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import matplotlib.animation as animation
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.gridspec import GridSpec
 from matplotlib.widgets import Slider, Button
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
-from sklearn import decomposition
-from sklearn.preprocessing import Normalizer
-
-from scipy import ndimage
-
-from hexrd import imageseries
-from hexrd import config
-from hexrd import xrdutil
-from hexrd import instrument
-from hexrd import imageutil
-from hexrd import imageseries
-from hexrd import material
+from matplotlib.figure import Figure
 
 import pandas as pd
-import seaborn as sns
 
 import cv2
 
@@ -73,15 +50,74 @@ from CPCorrFunctions import cpcorr
 
 #%% ***************************************************************************
 # CLASS DECLARATION
-class dic_parameters():
-    def __init__(self, grid_spacing=40, 
-                 fixed_corr_dimen=[100, 100], 
-                 moving_corr_dimen=[40, 40]):
+class dic_matrices():
+    def __init__(self, 
+                 dic_par_mat=np.array([]), 
+                 ref_points=np.array([]), 
+                 cur_points=np.array([]),
+                 output_mat=np.array([])):
         
+        # initialize class variables
+        self.dic_par_mat = dic_par_mat
+        self.ref_points = ref_points
+        self.cur_points = cur_points
+        self.output_mat = output_mat
+    
+    # setters and getters
+    def get_dic_par_mat(self):
+        return self.dic_par_mat
+    def set_dic_par_mat(self, dic_par_mat):
+        self.dic_par_mat = dic_par_mat
+    
+    def get_ref_points(self):
+        return self.ref_points
+    def set_ref_points(self, ref_points):
+        self.ref_points = ref_points
+    
+    def get_cur_points(self):
+        return self.cur_points
+    def set_cur_points(self, cur_points):
+        self.cur_points = cur_points
+    
+    def get_output_mat(self):
+        return self.output_mat
+    def set_output_mat(self, output_mat):
+        self.output_mat = output_mat
+        
+    # extra functions
+    def process_dic_par_file(self, dic_par_dir):
+        # day, month, day number, time, year, image number, load, screw position, extra
+        df = pd.read_csv(dic_par_dir, sep=" ", header=None)
+        self.dic_par_mat = np.array(df)[:, [5, 6, 7]]
+    
+    # str and rep
+    def __repr__(self):
+        print("dic_matrices()")
+    def __str__(self):
+        class_dict = {'dic_par_mat' : self.dic_par_mat,
+        'ref_points' : self.ref_points,
+        'cur_points' : self.cur_points,
+        'output_mat' : self.output_mat}
+        
+        return str(class_dict)
+        
+
+class dic_parameters():
+    def __init__(self, 
+                 grid_spacing=[40, 40], 
+                 fixed_corr_dimen=[100, 100], 
+                 moving_corr_dimen=[40, 40],
+                 sample_width=1,
+                 sample_thickness=1):
+        
+        # initialize class variables
         self.grid_spacing = grid_spacing
         self.fixed_corr_dimen = fixed_corr_dimen
         self.moving_corr_dimen = moving_corr_dimen
-        
+        self.sample_width = sample_width
+        self.sample_thickness = sample_thickness
+    
+    # getters and setters
     def get_grid_spacing(self):
         return self.grid_spacing
     def set_grid_spacing(self, grid_spacing):
@@ -96,6 +132,145 @@ class dic_parameters():
         return self.moving_corr_dimen
     def set_moving_corr_dimen(self, moving_corr_dimen):
         self.moving_corr_dimen = moving_corr_dimen
+        
+    def get_sample_width(self):
+        return self.sample_width
+    def set_sample_width(self, sample_width):
+        self.sample_width = sample_width
+    
+    def get_sample_thickness(self):
+        return self.sample_thickness
+    def set_sample_thickness(self, sample_thickness):
+        self.sample_thickness = sample_thickness
+    
+    def get_sample_area(self):
+        return self.sample_width * self.sample_thickness
+    
+    # extra fuctions
+    def load_dic_parameters_from_file(self, dic_params_dir):
+        with open(dic_params_dir, "rb") as input_file:
+             e = pickle.load(input_file)
+             self.set_grid_spacing(e.get_grid_spacing())
+             self.set_fixed_corr_dimen(e.get_fixed_corr_dimen())
+             self.set_moving_corr_dimen(e.get_moving_corr_dimen())
+             self.set_sample_width(e.get_sample_width())
+             self.set_sample_thickness(e.get_sample_thickness())
+             
+    def save_dic_parameters_to_file(self, dic_params_dic):
+        with open(dic_params_dic, "wb") as output_file:
+            pickle.dump(self, output_file)
+    
+    # str and rep
+    def __repr__(self):
+        print("dic_parameters()")
+    def __str__(self):
+        class_dict = {'grid_spacing' : self.grid_spacing,
+        'fixed_corr_dimen' : self.fixed_corr_dimen,
+        'moving_corr_dimen' : self.moving_corr_dimen,
+        'sample_width' : self.sample_width,
+        'sample_thickness' : self.sample_thickness}
+        
+        return str(class_dict)
+
+class dic_paths():
+    def __init__(self, 
+                 base_dir=os.getcwd()):
+        
+        # intialize class variables
+        self.base_dir = base_dir
+        self.dic_par_dir = base_dir
+        self.dic_par_fname = 'dic.par'
+        self.img_dir = base_dir
+        self.img_fname_template = 'dic%06i.tiff'
+        self.output_dir = base_dir
+        self.output_fname = 'output.txt'
+        self.first_img_num = 0
+        
+    # setters and getters
+    def get_base_dir(self):
+        return self.base_dir
+    def set_base_dir(self, base_dir):
+        self.base_dir = base_dir
+    
+    def get_dic_par_dir(self):
+        return self.dic_par_dir
+    def set_dic_par_dir(self, dic_par_dir):
+        self.dic_par_dir = dic_par_dir
+    
+    def get_dic_par_fname(self):
+        return self.dic_par_fname
+    def set_dic_par_fname(self, dic_par_fname):
+        self.dic_par_fname = dic_par_fname
+    
+    def get_img_dir(self):
+        return self.img_dir
+    def set_img_dir(self, img_dir):
+        self.img_dir = img_dir
+    
+    def get_img_fname_template(self):
+        return self.img_fname_template
+    def set_img_fname_template(self, img_fname_template):
+        self.img_fname_template = img_fname_template
+    
+    def get_output_dir(self):
+        return self.output_dir
+    def set_output_dir(self, output_dir):
+        self.output_dir = output_dir
+    
+    def get_output_fname(self):
+        return self.output_fname
+    def set_output_fname(self, output_fname):
+        self.output_fname = output_fname
+    
+    def get_first_img_num(self):
+        return self.first_img_num
+    def set_first_img_num(self, first_img_num):
+        self.first_img_num = first_img_num 
+    
+    # extra functions
+    def open_dic_par_file(self):
+        root = tk.Tk()
+        root.withdraw()
+        
+        dic_par_dir = tk.filedialog.askopenfilename(initialdir=self.base_dir, 
+                                                    defaultextension='.par',
+                                                    filetypes=[("dic par files", "*.par")],
+                                                    title='Select dic.par File')
+    
+    def open_first_image(self):
+        root = tk.Tk()
+        root.withdraw()
+        
+        first_img_dir = tk.filedialog.askopenfilename(initialdir=self.base_dir, 
+                                                    defaultextension='.tiff',
+                                                    filetypes=[("TIFF Files", "*.tiff")],
+                                                    title='Select First DIC Image File')
+        
+        if first_img_dir is None:
+            quit()
+        else:
+            self.img_dir.set_img_dir(os.path.dirname(first_img_dir))
+            first_img_fname = os.path.basename(first_img_dir)
+            self.first_img_num = int((first_img_fname.split('_')[-1]).split('.')[0])
+    
+    def get_img_num_dir(self, img_num):
+        return os.path.join(self.img_dir, self.img_fname_template %(img_num))
+    
+    # str and rep
+    def __repr__(self):
+        print("dic_paths()")
+    def __str__(self):
+        class_dict = {'base_dir' : self.base_dir,
+        'dic_par_dir' : self.dic_par_dir,
+        'dic_par_fname' : self.dic_par_fname,
+        'img_dir' : self.img_dir,
+        'img_fname_template' : self.img_fname_template,
+        'output_dir' : self.output_dir,
+        'output_fname' : self.output_fname,
+        'first_img_num' : self.first_img_num}
+        
+        return str(class_dict)
+
     
 
 class grid_selector_widget():
