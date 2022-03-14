@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.gridspec import GridSpec
 from matplotlib.widgets import Slider, Button
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 
 import pandas as pd
@@ -48,7 +48,7 @@ import tkinter as tk
 from CPCorrFunctions import cpcorr
 
 
-#%% ***************************************************************************
+# ***************************************************************************
 # CLASS DECLARATION
 class dic_matrices():
     def __init__(self, 
@@ -90,6 +90,30 @@ class dic_matrices():
         df = pd.read_csv(dic_par_dir, sep=" ", header=None)
         self.dic_par_mat = np.array(df)[:, [5, 6, 7]]
     
+    def load_dic_matrices_from_file(self, dic_matrices_dir):
+        with open(dic_matrices_dir, "rb") as input_file:
+             e = pickle.load(input_file)
+             self.set_dic_par_mat(e.get_dic_par_mat())
+             self.set_ref_points(e.get_ref_points())
+             self.set_cur_points(e.get_cur_points())
+             self.set_output_mat(e.get_output_mat())
+             
+    def save_dic_matrices_to_file(self, dic_matrices_dir):
+        with open(dic_matrices_dir, "wb") as output_file:
+            pickle.dump(self, output_file)
+    
+    def calc_grid_spacing(self):
+        if len(self.ref_points.shape) == 2:
+            xs = np.unique(self.ref_points[:, 0])
+            ys = np.unique(self.ref_points[:, 1])
+            
+            return [np.abs(xs[0] - xs[1]), np.abs(ys[0] - ys[1])]
+    
+    def calc_bounding_box(self):
+        if len(self.ref_points.shape) == 2:
+            return np.array([[np.min(self.ref_points[:, 0]), np.min(self.ref_points[:, 1])],
+                             [np.max(self.ref_points[:, 0]), np.max(self.ref_points[:, 1])]])
+        
     # str and rep
     def __repr__(self):
         print("dic_matrices()")
@@ -156,8 +180,8 @@ class dic_parameters():
              self.set_sample_width(e.get_sample_width())
              self.set_sample_thickness(e.get_sample_thickness())
              
-    def save_dic_parameters_to_file(self, dic_params_dic):
-        with open(dic_params_dic, "wb") as output_file:
+    def save_dic_parameters_to_file(self, dic_params_dir):
+        with open(dic_params_dir, "wb") as output_file:
             pickle.dump(self, output_file)
     
     # str and rep
@@ -181,7 +205,7 @@ class dic_paths():
         self.dic_par_dir = base_dir
         self.dic_par_fname = 'dic.par'
         self.img_dir = base_dir
-        self.img_fname_template = 'dic%06i.tiff'
+        self.img_fname_template = 'dic_%06i.tiff'
         self.output_dir = base_dir
         self.output_fname = 'output.txt'
         self.first_img_num = 0
@@ -228,7 +252,7 @@ class dic_paths():
         self.first_img_num = first_img_num 
     
     # extra functions
-    def open_dic_par_file(self):
+    def open_dic_par_file(self, dic_mats):
         root = tk.Tk()
         root.withdraw()
         
@@ -236,6 +260,16 @@ class dic_paths():
                                                     defaultextension='.par',
                                                     filetypes=[("dic par files", "*.par")],
                                                     title='Select dic.par File')
+        
+        if not dic_par_dir:
+            quit()
+        else:
+            try:
+                self.set_dic_par_dir(os.path.dirname(dic_par_dir))
+                self.set_dic_par_fname(os.path.basename(dic_par_dir))
+                dic_mats.process_dic_par_file(dic_par_dir)
+            except:
+                self.open_dic_par_file(dic_mats)
     
     def open_first_image(self):
         root = tk.Tk()
@@ -246,12 +280,15 @@ class dic_paths():
                                                     filetypes=[("TIFF Files", "*.tiff")],
                                                     title='Select First DIC Image File')
         
-        if first_img_dir is None:
+        if not first_img_dir:
             quit()
         else:
-            self.img_dir.set_img_dir(os.path.dirname(first_img_dir))
-            first_img_fname = os.path.basename(first_img_dir)
-            self.first_img_num = int((first_img_fname.split('_')[-1]).split('.')[0])
+            try:
+                self.set_img_dir(os.path.dirname(first_img_dir))
+                first_img_fname = os.path.basename(first_img_dir)
+                self.set_first_img_num(int((first_img_fname.split('_')[-1]).split('.')[0]))
+            except:
+                self.open_first_image()
     
     def get_img_num_dir(self, img_num):
         return os.path.join(self.img_dir, self.img_fname_template %(img_num))
@@ -271,7 +308,298 @@ class dic_paths():
         
         return str(class_dict)
 
+  
+
+
+
+
+class dic_paramteres_selector_widget():
+    def __init__(self, dic_paths, dic_params, dic_mats, adjust_grid=True):
+        
+        self.dic_paths = dic_paths
+        self.dic_params = dic_params
+        self.dic_mats = dic_mats
+        
+        self.window = tk.Tk()
+        self.window.geometry("1000x800")
+        
+        self.first_img = cv2.imread(dic_paths.get_img_num_dir(dic_paths.get_first_img_num()), 0)
+        
+        self.fig = Figure(figsize=(6,6))
+        self.fig.suptitle("Use the left mouse button to select a region of interest")
+        self.first_img_ax = self.fig.add_subplot(111)
+        self.first_img_ax.imshow(self.first_img, cmap='Greys_r')
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.window)
+        self.canvas.get_tk_widget().place(x=0, y=0, height=800, width=800)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.window)
+        
+        # handle mouse cursor button for figure grid selection
+        self.num_clicks = 0
+        self.bound_box_array = np.zeros([2,2])
+        def on_fig_cursor_press(event):
+            if event.inaxes is not None and str(event.button) == 'MouseButton.LEFT' and str(self.toolbar.mode) != 'zoom rect':
+                if self.num_clicks == 0:
+                    self.bound_box_array[0, :] = [event.xdata, event.ydata]
+                    self.first_img_ax.scatter(event.xdata, event.ydata, c='r', s=200, marker='+')
+                    self.canvas.draw()
+                    # update plot here with on point scatter
+                else:
+                    self.bound_box_array[1, :] = [event.xdata, event.ydata]
+                    self.update_plot()
+                    # update plot here with on point scatter and with grid
+                
+                self.num_clicks = (self.num_clicks + 1) % 2
+        
+        if adjust_grid:
+            self.fig.canvas.mpl_connect('button_press_event', on_fig_cursor_press)
+        
+        
+        
+        
+        # Add a button for loading dic paramters
+        def load_params_on_click():
+            print("Load DIC Parameters")
+            root = tk.Tk()
+            root.withdraw()
+            
+            dic_params_dir = tk.filedialog.askopenfilename(initialdir=self.dic_paths.get_output_dir(),
+                                                           title='Select DIC Parameters File')
+            
+            if not dic_params_dir:
+                pass
+            else:
+                try:
+                    self.dic_paths.set_output_dir(os.path.dirname(dic_params_dir))
+                    self.dic_params.load_dic_parameters_from_file(dic_params_dir)
+                    
+                    update_sliders()
+                    if self.dic_mats.get_ref_points().size != 0:
+                        self.update_plot()
+                except:
+                    print("Something failed when loading the params file")
+                    pass
+            
+            # update sliders
+        self.load_params_button = tk.Button(self.window, text="Load DIC Parameters", command=load_params_on_click)
+        self.load_params_button.place(x=820, y=150, height=40, width=160)
+        
+        # Add a button for saving dic parameters
+        def save_params_on_click():
+            print("Save DIC Parameters")
+            root = tk.Tk()
+            root.withdraw()
+            
+            dic_params_dir_fname = tk.filedialog.asksaveasfilename(confirmoverwrite=False,
+                                                                 initialdir=self.dic_paths.get_output_dir(),
+                                                                 title='Save DIC Parameters')
+            
+            if not dic_params_dir_fname:
+                pass
+            else:
+                try:
+                    self.dic_paths.set_output_dir(os.path.dirname(dic_params_dir_fname))
+                    self.dic_params.save_dic_parameters_to_file(dic_params_dir_fname)
+                except:
+                    print("Something failed when saving the params file")
+                    pass
+            
+        self.save_params_button = tk.Button(self.window, text="Save DIC Parameters", command=save_params_on_click)
+        self.save_params_button.place(x=820, y=200, height=40, width=160)
+        
+        # Add a button for loading grid points
+        def load_grid_on_click():
+            print("Load Grid")
+            root = tk.Tk()
+            root.withdraw()
+            
+            dic_grid_dir = tk.filedialog.askopenfilename(initialdir=self.dic_paths.get_output_dir(),
+                                                           title='Select DIC Grid File')
+            
+            if not dic_grid_dir:
+                pass
+            else:
+                try:
+                    self.dic_mats.load_dic_matrices_from_file(dic_grid_dir)
+                    
+                    self.dic_params.set_grid_spacing(self.dic_mats.calc_grid_spacing())
+                    self.bound_box_array = self.dic_mats.calc_bounding_box()
+                    
+                    update_sliders()
+                    if self.dic_mats.get_ref_points().size != 0:
+                        self.update_plot()
+                except:
+                    print("Something failed when loading grid file")
+                    pass
+            # update grid spacing and sliders
+        self.load_grid_button = tk.Button(self.window, text="Load Grid", command=load_grid_on_click)
+        self.load_grid_button.place(x=820, y=250, height=40, width=160)
+        
+        # Add a button for saving grid points
+        def save_grid_on_click():
+            print("Save Grid")
+            root = tk.Tk()
+            root.withdraw()
+            
+            dic_grid_dir_fname = tk.filedialog.asksaveasfilename(confirmoverwrite=False,
+                                                                 initialdir=self.dic_paths.get_output_dir(),
+                                                                 title='Save DIC Grid')
+            
+            if not dic_grid_dir_fname:
+                pass
+            else:
+                try:
+                    self.dic_paths.set_output_dir(os.path.dirname(dic_grid_dir_fname))
+                    self.dic_mats.save_dic_matrices_to_file(dic_grid_dir_fname)
+                except:
+                    print("Something failed when saving the grid file")
+                    pass
+        self.save_grid_button = tk.Button(self.window, text="Save Grid", command=save_grid_on_click)
+        self.save_grid_button.place(x=820, y=300, height=40, width=160)
+        
+        
+        # add slider for grid spacing
+        def grid_spacing_slider_change(event):
+            self.dic_params.set_grid_spacing([self.grid_width_slider.get(), 
+                                              self.grid_height_slider.get()])
+            if self.dic_mats.get_ref_points().size != 0:
+                self.update_plot()
+        
+        self.grid_width_slider = tk.Scale(self.window, label='Grid Spacing Width', 
+                                          command=grid_spacing_slider_change,
+                                          orient='horizontal',
+                                          from_=20, to=200)
+        self.grid_width_slider.place(x=820, y=350, height=50, width=160)
+        
+        self.grid_height_slider = tk.Scale(self.window, label='Grid Spacing Height', 
+                                           command=grid_spacing_slider_change,
+                                           orient='horizontal',
+                                           from_=20, to=200)
+        self.grid_height_slider.place(x=820, y=400, height=50, width=160)
+        
+        # add slider for fixed corr dimen
+        def fixed_slider_change(event):
+            self.dic_params.set_fixed_corr_dimen([self.fixed_width_slider.get(), 
+                                                  self.fixed_height_slider.get()])
+            if self.dic_mats.get_ref_points().size != 0:
+                self.update_plot()
+        
+        self.fixed_width_slider = tk.Scale(self.window, label='Fixed Box Width', 
+                                          command=fixed_slider_change,
+                                          orient='horizontal',
+                                          from_=20, to=200)
+        self.fixed_width_slider.place(x=820, y=450, height=50, width=160)
+        
+        self.fixed_height_slider = tk.Scale(self.window, label='Fixed Box Height', 
+                                           command=fixed_slider_change,
+                                           orient='horizontal',
+                                           from_=20, to=200)
+        self.fixed_height_slider.place(x=820, y=500, height=50, width=160)
+        
+        # add slider for moving corr dimen
+        def moving_slider_change(event):
+            self.dic_params.set_moving_corr_dimen([self.moving_width_slider.get(), 
+                                                   self.moving_height_slider.get()])
+            if self.dic_mats.get_ref_points().size != 0:
+                self.update_plot()
+        
+        self.moving_width_slider = tk.Scale(self.window, label='Moving Box Width', 
+                                          command=moving_slider_change,
+                                          orient='horizontal',
+                                          from_=20, to=200)
+        self.moving_width_slider.place(x=820, y=550, height=50, width=160)
+        
+        self.moving_height_slider = tk.Scale(self.window, label='Moving Box Height', 
+                                           command=moving_slider_change,
+                                           orient='horizontal',
+                                           from_=20, to=200)
+        self.moving_height_slider.place(x=820, y=600, height=50, width=160)
+        
+        
+        def update_sliders():
+            self.grid_width_slider.set(dic_params.get_grid_spacing()[0])
+            self.grid_height_slider.set(dic_params.get_grid_spacing()[1])
+            self.fixed_width_slider.set(dic_params.get_fixed_corr_dimen()[0])
+            self.fixed_height_slider.set(dic_params.get_fixed_corr_dimen()[1])
+            self.moving_width_slider.set(dic_params.get_moving_corr_dimen()[0])
+            self.moving_height_slider.set(dic_params.get_moving_corr_dimen()[1])
+        
+        update_sliders()
+        
+        
+        
+        # Add a button for saving grid points
+        def on_closing():
+            self.window.destroy()
+        def quit_on_click():
+            print("Quit")
+            on_closing()
+            
+        self.quit_button = tk.Button(self.window, text="Quit", command=quit_on_click)
+        self.quit_button.place(x=820, y=700, height=40, width=160)
+        
+        self.window.protocol("WM_DELETE_WINDOW", on_closing)
+        self.window.mainloop()
     
+        
+    def update_plot(self):
+        # initialize local variables
+        bbc = self.bound_box_array
+        fcd = self.dic_params.get_fixed_corr_dimen()
+        mcd = self.dic_params.get_moving_corr_dimen()
+        gs = self.dic_params.get_grid_spacing()
+        
+        # generate grid points
+        x = np.linspace(np.min(bbc[:, 0]), np.max(bbc[:, 0]), 
+                        int(np.abs(bbc[0, 0] - bbc[1, 0]) / gs[0]) + 1, 
+                        endpoint=True)
+        y = np.linspace(np.min(bbc[:, 1]), np.max(bbc[:, 1]), 
+                        int(np.abs(bbc[0, 1] - bbc[1, 1]) / gs[1]) + 1, 
+                        endpoint=True)
+        
+        xv, yv = np.meshgrid(x, y)
+        grid_pts = np.vstack([xv.flatten(), yv.flatten()]).T.astype(float)
+        self.dic_mats.set_ref_points(grid_pts)
+            
+        # generate rectangle patches        
+        fixed_rect = patches.Rectangle((grid_pts[0, 0] - fcd[0] / 2, grid_pts[0, 1] - fcd[1] / 2), 
+                                 fcd[0], fcd[1], 
+                                 linewidth=1, edgecolor='g', facecolor='none')
+        
+        moving_rect = patches.Rectangle((grid_pts[0, 0] - mcd[0] / 2, grid_pts[0, 1] - mcd[1] / 2), 
+                                 mcd[0], mcd[1], 
+                                 linewidth=1, edgecolor='c', facecolor='none')
+        
+        
+        # Add the patch to the Axes
+        self.first_img_ax.cla()
+        self.fig.suptitle("Use the left mouse button to select a region of interest \n - Control Point Fixed Box in Green \n - Control Point Moving Search Box in Cyan")
+        self.first_img_ax.imshow(self.first_img, cmap='Greys_r')
+        self.first_img_ax.add_patch(fixed_rect)#, edgecolor='g')
+        self.first_img_ax.add_patch(moving_rect)#, edgecolor='c')
+        self.first_img_ax.scatter(grid_pts[:, 0], grid_pts[:, 1], c='b', s=15)
+        self.canvas.draw()
+        
+
+
+
+
+base_dir = "/home/djs522/additional_sw/RealTimeDIC/CHESS_RealTimeDIC/example/dic_images/"
+exp_dic_params = dic_parameters()
+exp_dic_paths = dic_paths(base_dir=base_dir)
+exp_dic_mats = dic_matrices()
+
+exp_dic_paths.open_dic_par_file(exp_dic_mats)
+exp_dic_paths.open_first_image()
+
+dic_paramteres_selector_widget(exp_dic_paths, exp_dic_params, exp_dic_mats, adjust_grid=True)
+
+
+
+
+
+
+
+#%%
 
 class grid_selector_widget():
     # GenerateGrid - Function used to create or load existing grid for points
@@ -812,7 +1140,7 @@ img_processing_gap = 1
 # sample geometry
 sample_width = 1 # (mm) cross-sectional width of the sample for macro stress calculations
 sample_thickness = 1 # (mm) cross-sectional thickness of the sample for macro stress calculations
-sample_area = sample_width * sample_thickness # (mm^2) calculate sample cross-sectional area for stress calculations
+dic_matssample_area = sample_width * sample_thickness # (mm^2) calculate sample cross-sectional area for stress calculations
 
 # bool parameter options
 save_stress_strain = True
