@@ -13,7 +13,93 @@ Current File: This file has been translated, adapted and further developed from 
 File has been modified to work with CHESS_RealTimeDIC
 """
 
-import numpy as np, cv2, scipy.interpolate
+import numpy as np, cv2, scipy.interpolate 
+
+
+
+def process_correlations(ref_img_dir, curr_img_dir, grid_coords, 
+                         prev_valid_coords, dic_params):
+    # ProcessCorrelations - This function selects and defines processing modes
+    #                       for the correlation.
+    # 
+    #   INPUT:
+    # 
+    #   ref_image_dir is a string
+    #      The reference image, the image that was selected.  This image will
+    #      be used as the zero strain comparative image
+    # 
+    #   curr_image_dir is a string
+    #      The image being correlated. The image where we want to know the
+    #      strain.
+    # 
+    #   grid_x is a 1 x n vector
+    #      List of x-coordinates of a seed box.  
+    # 
+    #   grid_y is a 1 x n vector
+    #      List of y-coordinates of a seed box.  
+    # 
+    #   prev_valid_x is a 1 x n vector
+    #      List of x-coordinates of a reference box. An initial guess to aid in
+    #      corelation.  Will change from image to image. (Initial guess of
+    #      NewValidX)
+    # 
+    #   prev_valid_y is a 1 x n vector
+    #      List of y-coordinates of a reference box. An initial guess to aid in
+    #      corelation.  Will change from image to image. (Initial guess of
+    #      NewValidY)
+    #
+    #   fixed_corr_dimen is a 1 x 2 vector
+    #      (pixels) fixed correlation area dimensions for control point [height, width]
+    #
+    #   moving_corr_dimen is a 1 x 2 vector
+    #      (pixels) moving subregion area dimensions for control point [height, width]
+    # 
+    #   OUTPUT:
+    # 
+    #   curr_valid_x is a 1 x n vector
+    #      The x-coordinates that the seed point has translated to.
+    # 
+    #   curr_valid_y is a 1 x n vector
+    #      The y-cooridnates that the seed point has translated to.
+    #      
+    #   Notes:
+    #      Written and tested Spring 2017
+    # 
+    #      No filter applied to images, base code that this was derived from
+    #      had the ability to apply a filter to the images.
+    #      Refer to first image as the baseline instead of previous image.
+    #        - Not sure what this means, it is a note from Carmen. - CJB
+    #        - I dont think this holds true any more
+    # 
+    #      GridX & GridY are equal to PreValidX & PreValidY for the first
+    #      correlation.  After that they can begin to deviate when there are
+    #      better guesses for where PreValidX & PreValidY should be
+    # 
+    #      Need to give 'CPcorr' input files
+    #
+    #   REVISION:
+    #      Carmen Fang, Chris Budrow (2017) - Originally written and tested
+    #
+    #      Tyrone Bracker, Dalton Shadle (2020) - Modified to include changing
+    #      correlation and subregion size
+    #
+    #      Dalton Shadle (2022) - Converted to Python
+    
+    # read in images
+    ref_img = cv2.imread(ref_img_dir, 0)
+    curr_img = cv2.imread(curr_img_dir, 0)
+    
+    # Use  function 'CPcorr', this is the main correlation function.
+    # Derived from Matlabs 'cpcorr' function but allowing for larger scan area.
+    # It will be slower but results in better corelation.
+    [curr_valid_coords, StdX, StdY, CorrCoef, errorInfos] = cpcorr(np.copy(prev_valid_coords), 
+                                                           np.copy(grid_coords), 
+                                                           curr_img, ref_img, 
+                                                           dic_params.get_fixed_corr_dimen(), 
+                                                           dic_params.get_moving_corr_dimen())
+    
+    return curr_valid_coords
+
 
 def cpcorr(InputPoints, BasePoints, Input, Base, fixed_corr_dimen, moving_corr_dimen):
     
@@ -306,7 +392,7 @@ def findpeak2(f,subpixel):
         xq=np.linspace(-kernelsize,kernelsize,upsampling)
         #[Xq,Yq]=np.meshgrid(xq,xq)
 
-        bilinterp = interpolate.interp2d(x, x, fextracted, kind='cubic')
+        bilinterp = scipy.interpolate.interp2d(x, x, fextracted, kind='cubic')
         fq = bilinterp(xq, xq)
         #splineint = RectBivariateSpline(x, x, fextracted, kx=3, ky=3, s=0)
         #fq=splineint(xq,xq)
@@ -366,7 +452,7 @@ def findpeak3(f,subpixel):
         ypeak=ypeak+yoffset
 
         # 2D linear interpolation
-        bilinterp = interpolate.interp2d(x, x, fextracted, kind='linear')
+        bilinterp = scipy.interpolate.interp2d(x, x, fextracted, kind='linear')
         max_f = bilinterp(xoffset,yoffset)
 
         # peak width (full width at half maximum)
