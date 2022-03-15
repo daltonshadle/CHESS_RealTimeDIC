@@ -290,12 +290,12 @@ class dic_parameters_selector_widget():
 
 #%%
 class dic_continuous_update_widget():
-    def __init__(self, dic_paths, dic_params, dic_mats, prev_img_idx):
+    def __init__(self, dic_paths, dic_params, dic_mats, prev_img_num):
         
         self.dic_paths = dic_paths
         self.dic_params = dic_params
         self.dic_mats = dic_mats
-        self.prev_img_idx = prev_img_idx
+        self.prev_img_num = prev_img_num
         
         self.window = tk.Tk()
         self.window.geometry("1000x800")
@@ -350,9 +350,10 @@ class dic_continuous_update_widget():
         self.window.mainloop()
     
     def check_for_new_image(self):
-        self.cur_img_idx = self.dic_mats.process_dic_par_file(self.dic_paths.get_dic_par_full_dir())
+        self.dic_mats.process_dic_par_file(self.dic_paths.get_dic_par_full_dir())
+        self.cur_img_num = self.dic_mats.get_dic_par_mat()[-1, 0]
         
-        if (self.cur_img_idx != self.prev_img_idx) or (self.reprocess):
+        if (self.cur_img_num != self.prev_img_num) or (self.reprocess):
             self.process_img()
             self.reprocess = False
         
@@ -360,8 +361,11 @@ class dic_continuous_update_widget():
     
     def process_img(self):
         # process image index for full image and name
-        [cur_img_num, cur_force, cur_screw] = self.dic_mats.get_dic_par_mat()[self.cur_img_idx, :]
-        cur_img_dir = self.dic_paths.get_img_num_dir(cur_img_num)
+        cur = self.dic_mats.get_dic_par_mat_at_img_num(self.cur_img_num)
+        cur_img_num = cur[0]
+        cur_force = cur[1]
+        cur_screw = cur[2]
+        cur_img_dir = self.dic_paths.get_img_num_dir(self.cur_img_num)
         
         # process the rest of the images
         self.dic_mats.set_cur_points(process_correlations(self.dic_paths.get_first_img_dir(),
@@ -392,8 +396,8 @@ class dic_continuous_update_widget():
         
         self.update_plot()
         
-        # update prev_img_idx
-        self.prev_img_idx = self.cur_img_idx
+        # update prev_img_num
+        self.prev_img_num = self.cur_img_num
         
     def update_plot(self):
         # Add the patch to the Axes

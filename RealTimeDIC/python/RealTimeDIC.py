@@ -10,8 +10,6 @@ Created on Tue Mar  8 14:57:43 2022
 # FunctionNames() = camel case with parentheses and without underscores
 # variable_names = all lowercase with underscores
 
-
-
 #*****************************************************************************
 #%% IMPORTS
 import numpy as np
@@ -45,7 +43,7 @@ exp_dic_paths.open_dic_par_file(exp_dic_mats)
 
 #*****************************************************************************
 #%% SELECT FIRST IMAGE / REFERENCE IMAGE
-exp_dic_paths.open_first_image(exp_dic_mats)
+exp_dic_paths.open_first_image()
 
 #*****************************************************************************
 #%% SET CONTROL POINT GRID AND DIC PARAMTERS
@@ -54,19 +52,20 @@ dpsw = dic_parameters_selector_widget(exp_dic_paths, exp_dic_params, exp_dic_mat
 
 #*****************************************************************************
 #%% PROCESS CURRENT IMAGES
-first_img_idx = exp_dic_paths.get_first_img_idx()
-last_img_idx = exp_dic_paths.get_last_img_idx()
-img_indices = np.arange(first_img_idx, last_img_idx, step=1)
-num_imgs = img_indices.size
-first_img_dir = exp_dic_paths.get_first_img_dir()
 
+first_img_dir = exp_dic_paths.get_first_img_dir()
+img_nums = exp_dic_mats.get_dic_par_mat()[:, 0]
+num_imgs = img_nums.size
 exp_dic_mats.reset_output_mat()
 
 
 # for each file to process...
-for i in range(num_imgs):
+for i, cur_img_num in enumerate(img_nums):
     # process image index for full image and name
-    [cur_img_num, cur_force, cur_screw] = exp_dic_mats.get_dic_par_mat()[img_indices[i], :]
+    cur = exp_dic_mats.get_dic_par_mat_at_img_num(cur_img_num)
+    cur_img_num = cur[0]
+    cur_force = cur[1]
+    cur_screw = cur[2]
     cur_img_dir = exp_dic_paths.get_img_num_dir(cur_img_num)
     
     if i == 0:
@@ -100,5 +99,5 @@ exp_dic_mats.save_output_mat_to_file(exp_dic_paths.get_output_full_dir())
 #*****************************************************************************
 #%% START REAL TIME PROCESSING
 
-dcuw = dic_continuous_update_widget(exp_dic_paths, exp_dic_params, exp_dic_mats, prev_img_idx=last_img_idx)
+dcuw = dic_continuous_update_widget(exp_dic_paths, exp_dic_params, exp_dic_mats, prev_img_num=cur_img_num)
 

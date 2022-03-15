@@ -54,8 +54,6 @@ class dic_matrices():
         # day, month, day number, time, year, image number, load, screw position, extra
         df = pd.read_csv(dic_par_dir, sep=" ", header=None)
         self.dic_par_mat = np.array(df)[:, [5, 6, 7]]
-        
-        return self.dic_par_mat.shape[0] - 1
     
     def load_dic_matrices_from_file(self, dic_matrices_dir):
         with open(dic_matrices_dir, "rb") as input_file:
@@ -85,12 +83,6 @@ class dic_matrices():
                              [np.max(self.ref_points[:, 0]), np.max(self.ref_points[:, 1])]])
         else:
             return np.zeros([2,2])
-    
-    def get_img_idx_from_num(self, img_num):
-        img_idx = np.where(self.dic_par_mat[:, 0] == img_num)[0]
-        if img_idx.size == 0:
-            print("WARNING: IMAGE NOT FOUND")
-        return img_idx
     
     def fit_strain(self, ref_coords, curr_disp):
         # fit_strain - This function does a linear fit to calculate strain from displacements
@@ -146,7 +138,8 @@ class dic_matrices():
         if cur_array.shape[1] != 6:
             cur_array = cur_array.T
         try:
-            self.output_mat[self.get_img_idx_from_num(img_num), :] = cur_array
+            [o, img_idx] = self.get_output_mat_at_img_num(img_num, return_idx=True)
+            self.output_mat[img_idx, :] = cur_array
         except Exception as e:
             print(e)
     
@@ -155,6 +148,20 @@ class dic_matrices():
     
     def reset_cur_points(self):
         self.set_cur_points(self.get_ref_points())
+        
+    def get_dic_par_mat_at_img_num(self, img_num, return_idx=False):
+        img_idx = np.where(self.dic_par_mat[:, 0] == img_num)[0]
+        if return_idx:
+            return self.dic_par_mat[img_idx, :].flatten(), img_idx
+        else:
+            return self.dic_par_mat[img_idx, :].flatten()
+        
+    def get_output_mat_at_img_num(self, img_num, return_idx=False):
+        img_idx = np.where(self.output_mat[:, 0] == img_num)[0]
+        if return_idx:
+            return self.output_mat[img_idx, :].flatten(), img_idx
+        else:
+            return self.output_mat[img_idx, :].flatten()
     
     # str and rep
     def __repr__(self):
@@ -251,9 +258,6 @@ class dic_paths():
         self.output_dir = base_dir
         self.output_fname = 'output.txt'
         self.first_img_num = 0
-        self.first_img_idx = 0
-        self.last_img_num = -1
-        self.last_img_idx = -1
         
     # setters and getters
     def get_base_dir(self):
@@ -296,21 +300,6 @@ class dic_paths():
     def set_first_img_num(self, first_img_num):
         self.first_img_num = first_img_num 
     
-    def get_first_img_idx(self):
-        return self.first_img_idx
-    def set_first_img_idx(self, first_img_idx):
-        self.first_img_idx = first_img_idx 
-    
-    def get_last_img_num(self):
-        return self.last_img_num
-    def set_last_img_num(self, last_img_num):
-        self.last_img_num = last_img_num 
-    
-    def get_last_img_idx(self):
-        return self.last_img_idx
-    def set_last_img_idx(self, last_img_idx):
-        self.last_img_idx = last_img_idx 
-    
     # extra functions
     def open_dic_par_file(self, dic_mats):
         root = tk.Tk()
@@ -327,15 +316,12 @@ class dic_paths():
             try:
                 self.set_dic_par_dir(os.path.dirname(dic_par_dir))
                 self.set_dic_par_fname(os.path.basename(dic_par_dir))
-                last_img_idx = dic_mats.process_dic_par_file(dic_par_dir)
-                
-                self.set_last_img_idx(last_img_idx)
-                self.set_last_img_num(dic_mats.get_dic_par_mat()[self.get_last_img_idx(), 0])
+                dic_mats.process_dic_par_file(dic_par_dir)
             except Exception as e:
                 print(e)
                 self.open_dic_par_file(dic_mats)
     
-    def open_first_image(self, dic_mats):
+    def open_first_image(self):
         root = tk.Tk()
         root.withdraw()
         
@@ -351,7 +337,6 @@ class dic_paths():
                 self.set_img_dir(os.path.dirname(first_img_dir))
                 first_img_fname = os.path.basename(first_img_dir)
                 self.set_first_img_num(int((first_img_fname.split('_')[-1]).split('.')[0]))
-                self.set_first_img_idx(dic_mats.get_img_idx_from_num(self.get_first_img_num()))
             except:
                 self.open_first_image()
     
@@ -359,8 +344,6 @@ class dic_paths():
         return os.path.join(self.img_dir, self.img_fname_template %(img_num))
     def get_first_img_dir(self):
         return self.get_img_num_dir(self.get_first_img_num())
-    def get_last_img_dir(self):
-        return self.get_img_num_dir(self.get_last_img_num())
     
     def get_dic_par_full_dir(self):
         return os.path.join(self.dic_par_dir, self.dic_par_fname)
@@ -378,9 +361,6 @@ class dic_paths():
         'img_fname_template' : self.img_fname_template,
         'output_dir' : self.output_dir,
         'output_fname' : self.output_fname,
-        'first_img_num' : self.first_img_num,
-        'first_img_idx' : self.first_img_idx,
-        'last_img_num' : self.last_img_num,
-        'last_img_idx' : self.last_img_idx}
+        'first_img_num' : self.first_img_num}
         
         return str(class_dict)
