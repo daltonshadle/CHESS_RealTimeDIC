@@ -13,9 +13,11 @@ import matplotlib.patches as patches
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.figure import Figure
 
+from CPCorrFunctions import process_correlations
+
 # ***************************************************************************
 # CLASS DECLARATION
-class dic_paramteres_selector_widget():
+class dic_parameters_selector_widget():
     def __init__(self, dic_paths, dic_params, dic_mats, adjust_grid=True):
         
         self.dic_paths = dic_paths
@@ -286,109 +288,122 @@ class dic_paramteres_selector_widget():
     def get_all_dic_objects(self):
         return [self.dic_paths, self.dic_params, self.dic_mats]
 
-
 #%%
-class continuous_update_widget():
-    def __init__(self, window, dic_par_dir, dic_params, sample_area,
-                 img_dir_template, first_img_idx, prev_img_idx, 
-                 ref_coords, curr_coords, output, output_dir):
+class dic_continuous_update_widget():
+    def __init__(self, dic_paths, dic_params, dic_mats, prev_img_idx):
         
-        self.dic_par_dir = dic_par_dir
+        self.dic_paths = dic_paths
         self.dic_params = dic_params
-        self.sample_area = sample_area
-        self.img_dir_template = img_dir_template
-        self.first_img_idx = first_img_idx
+        self.dic_mats = dic_mats
         self.prev_img_idx = prev_img_idx
-        self.ref_coords = ref_coords
-        self.curr_coords = curr_coords
-        self.output = output
-        self.output_dir = output_dir
         
-        self.window = window
+        self.window = tk.Tk()
         self.window.geometry("1000x800")
         
-        # Add a button for reprocessing
-        self.reprocess = False
-        def repreocess_image_on_click():
-            self.reprocess = True
-        self.reprocess_button = tk.Button(window, text="Reprocess Image", command=repreocess_image_on_click)
-        self.reprocess_button.place(x=820, y=100, height=40, width=160)
-        
-        # Add a button for resetting control point coordinates
-        def reset_coords_on_click():
-            self.curr_coords = self.ref_coords
-            self.reprocess = True
-        self.reset_coords_button = tk.Button(window, text="Reset CP Coordinates", command=reset_coords_on_click)
-        self.reset_coords_button.place(x=820, y=150, height=40, width=160)
-        
-        # Add a button for adjusting dic params
-        def adjust_dic_params_on_click():
-            t = grid_selector_widget(self.img_dir_template %(self.dic_par_mat[self.first_img_idx, 0]), 
-                                     dic_params=self.dic_params, grid_coords=self.ref_coords, adjust_grid=False)    
-            self.dic_params = t.get_dic_params()
-            self.reprocess = True
-        self.adjust_dic_params_button = tk.Button(window, text="Adjust Correlation Dimensions", command=adjust_dic_params_on_click)
-        self.adjust_dic_params_button.place(x=820, y=200, height=40, width=160)
         
         self.fig = plt.figure(figsize=(6,6))
         self.stress_strain_ax = self.fig.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.window)
         self.canvas.get_tk_widget().place(x=0, y=0, height=800, width=800)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.window)
+        
+        
+        
+        # Add a button for reprocessing
+        self.reprocess = False
+        def repreocess_image_on_click():
+            self.reprocess = True
+        self.reprocess_button = tk.Button(self.window, text="Reprocess Image", command=repreocess_image_on_click)
+        self.reprocess_button.place(x=820, y=150, height=40, width=160)
+        
+        # Add a button for resetting control point coordinates
+        def reset_coords_on_click():
+            self.dic_mats.reset_cur_points()
+            self.reprocess = True
+        self.reset_coords_button = tk.Button(self.window, text="Reset Control Points", command=reset_coords_on_click)
+        self.reset_coords_button.place(x=820, y=200, height=40, width=160)
+        
+        # Add a button for adjusting dic params
+        def adjust_dic_params_on_click():
+            dpsw = dic_parameters_selector_widget(self.dic_paths, self.dic_params, self.dic_mats, adjust_grid=False)
+            [self.dic_paths, self.dic_params, self.dic_mats] = dpsw.get_all_dic_objects()
+            self.reprocess = True
+        self.adjust_dic_params_button = tk.Button(self.window, text="Adjust DIC Parameters", command=adjust_dic_params_on_click)
+        self.adjust_dic_params_button.place(x=820, y=250, height=40, width=160)
         
         self.update_plot()
         
+        # Add a button for quitting
+        def on_closing(root):
+            MsgBox = tk.messagebox.askquestion ('Exit RealTimeDIC','Are you sure you want to exit RealTimeDIC? Output is saved, but all real-time processing will be lost.',icon = 'warning')
+            if MsgBox == 'yes':
+               root.destroy()
+               root.quit()  
+                
+                      
+        self.quit_button = tk.Button(self.window, text="Quit", command=lambda root=self.window:on_closing(root))
+        self.quit_button.place(x=820, y=700, height=40, width=160)
+        self.window.protocol("WM_DELETE_WINDOW", lambda root=self.window:on_closing(root))
+        
         self.window.after(500, self.check_for_new_image)
+        
+        self.window.mainloop()
     
     def check_for_new_image(self):
-        self.dic_par_mat = open_dic_par_file(self.dic_par_dir)
-        self.curr_img_idx = self.dic_par_mat.shape[0] - 1
+        self.cur_img_idx = self.dic_mats.process_dic_par_file(self.dic_paths.get_dic_par_full_dir())
         
-        if (self.curr_img_idx != self.prev_img_idx) or (self.reprocess):
+        if (self.cur_img_idx != self.prev_img_idx) or (self.reprocess):
             self.process_img()
             self.reprocess = False
         
         self.window.after(500, self.check_for_new_image)
     
     def process_img(self):
-        curr_img_num, curr_force, curr_screw = self.dic_par_mat[self.curr_img_idx, :]
-                
-        curr_coords = process_correlations(self.img_dir_template %(self.dic_par_mat[self.first_img_idx, 0]), 
-                                           self.img_dir_template %(curr_img_num), 
-                                           self.ref_coords, 
-                                           self.curr_coords, 
-                                           self.dic_params)
+        # process image index for full image and name
+        [cur_img_num, cur_force, cur_screw] = self.dic_mats.get_dic_par_mat()[self.cur_img_idx, :]
+        cur_img_dir = self.dic_paths.get_img_num_dir(cur_img_num)
+        
+        # process the rest of the images
+        self.dic_mats.set_cur_points(process_correlations(self.dic_paths.get_first_img_dir(),
+                                                         cur_img_dir, 
+                                                         self.dic_mats.get_ref_points(),
+                                                         self.dic_mats.get_cur_points(),
+                                                         self.dic_params))
         
         # do stress and strain calculations and write to output
-        curr_stress = curr_force / self.sample_area
-        curr_strain_xx = fit_strain(ref_coords[:, 0], (curr_coords[:, 0]-ref_coords[:, 0]))
-        curr_strain_yy = fit_strain(ref_coords[:, 1], (curr_coords[:, 1]-ref_coords[:, 1]))
-        curr_strain_xy = (fit_strain(ref_coords[:, 0], (curr_coords[:, 1]-ref_coords[:, 1])) + fit_strain(ref_coords[:, 1], (curr_coords[:, 0]-ref_coords[:, 0]))) / 2
+        [cur_stress, cur_strain_xx, cur_strain_yy, cur_strain_xy] = self.dic_mats.get_cur_stress_strain(cur_force, self.dic_params)
+        cur_info = np.array([cur_img_num, 
+                            cur_stress,
+                            cur_strain_xx,
+                            cur_strain_yy,
+                            cur_strain_xy,
+                            cur_screw])
         
-        # add to output
-        curr_info = np.array([curr_img_num, curr_stress, curr_strain_xx,
-                              curr_strain_yy, curr_strain_xy, curr_screw])
+        
         if self.reprocess:
-            self.output[self.curr_img_idx, :] = curr_info
+            self.dic_mats.replace_in_output(cur_info, cur_img_num)
         else:
-            self.output = np.vstack([self.output, curr_info])
-        np.savetxt(self.output_dir, self.output, fmt='%0.6f', delimiter='\t')
+            self.dic_mats.add_to_output(cur_info)
+        self.dic_mats.save_output_mat_to_file(self.dic_paths.get_output_full_dir())
         
         # display to screen
         print('DIC Image Number: %i \t Stress: %0.2f MPa \t Strain_XX: %0.3f %%' 
-              %(curr_img_num, self.output[self.curr_img_idx, 1], self.output[self.curr_img_idx, 2] * 100))
+              %(cur_img_num, cur_stress, cur_strain_xx * 100))
         
         self.update_plot()
         
         # update prev_img_idx
-        self.prev_img_idx = self.curr_img_idx
+        self.prev_img_idx = self.cur_img_idx
         
     def update_plot(self):
         # Add the patch to the Axes
         self.stress_strain_ax.cla()
-        self.stress_strain_ax.scatter(self.output[:, 2] * 100, self.output[:, 1], c='b');
+        output = self.dic_mats.get_output_mat()
+        self.stress_strain_ax.scatter(output[:, 2] * 100, output[:, 1], c='b');
         self.stress_strain_ax.set_xlabel('Macroscopic Strain (%)')
         self.stress_strain_ax.set_ylabel('Macroscopic Stress (MPa)')
+        self.fig.suptitle('Current Stress: %0.2f MPa \t Current Strain_XX: %0.3f %%' 
+              %(output[-1, 1], output[-1, 2] * 100))
         
         self.canvas.draw()
-
 
