@@ -13,7 +13,7 @@ Current File: This file has been translated, adapted and further developed from 
 File has been modified to work with CHESS_RealTimeDIC
 """
 
-import numpy as np, cv2, scipy.interpolate 
+import numpy as np, scipy.interpolate, cv2
 
 
 
@@ -162,7 +162,7 @@ def cpcorr(InputPoints, BasePoints, Input, Base, fixed_corr_dimen, moving_corr_d
             continue
 
 
-        norm_cross_corr = cv2.matchTemplate(sub_moving,sub_fixed,cv2.TM_CCORR_NORMED)
+        norm_cross_corr = cv2.matchTemplate(sub_moving,sub_fixed,cv2.TM_CCORR_NORMED) #DJS: Commented for second case
         #norm_cross_corr=scipy.signal.correlate2d(sub_fixed, sub_moving)
         #norm_cross_corr=sklearn.preprocessing.normalize(norm_cross_corr, norm='l2', axis=1, copy=True)
         #norm_cross_corr=match_template(sub_fixed,sub_moving)

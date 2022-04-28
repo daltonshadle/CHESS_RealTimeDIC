@@ -27,7 +27,9 @@ class dic_parameters_selector_widget():
         self.window = tk.Tk()
         self.window.geometry("1000x800")
         
+        print(dic_paths.get_img_num_dir(dic_paths.get_first_img_num()))
         self.first_img = cv2.imread(dic_paths.get_img_num_dir(dic_paths.get_first_img_num()), 0)
+        #self.first_img = skimage.io.imread(dic_paths.get_img_num_dir(dic_paths.get_first_img_num()))
         
         self.fig = Figure(figsize=(6,6))
         self.fig.suptitle("Use the left mouse button to select a region of interest")
@@ -175,13 +177,13 @@ class dic_parameters_selector_widget():
             self.grid_width_slider = tk.Scale(self.window, label='Grid Spacing Width', 
                                               command=grid_spacing_slider_change,
                                               orient='horizontal',
-                                              from_=20, to=200)
+                                              from_=5, to=200)
             self.grid_width_slider.place(x=820, y=350, height=50, width=160)
             
             self.grid_height_slider = tk.Scale(self.window, label='Grid Spacing Height', 
                                                command=grid_spacing_slider_change,
                                                orient='horizontal',
-                                               from_=20, to=200)
+                                               from_=5, to=200)
             self.grid_height_slider.place(x=820, y=400, height=50, width=160)
         
         # add slider for fixed corr dimen
@@ -278,7 +280,7 @@ class dic_parameters_selector_widget():
         
         # Add the patch to the Axes
         self.first_img_ax.cla()
-        self.fig.suptitle("Use the left mouse button to select a region of interest \n - Control Point Fixed Box in Green \n - Control Point Moving Search Box in Cyan")
+        self.fig.suptitle("Use the left mouse button to select two corners of a rectangular region of interest \n - Control Point Fixed Box in Green \n - Control Point Moving Search Box in Cyan")
         self.first_img_ax.imshow(self.first_img, cmap='Greys_r')
         self.first_img_ax.add_patch(fixed_rect)#, edgecolor='g')
         self.first_img_ax.add_patch(moving_rect)#, edgecolor='c')
@@ -308,7 +310,6 @@ class dic_continuous_update_widget():
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.window)
         
         
-        
         # Add a button for reprocessing
         self.reprocess = False
         def repreocess_image_on_click():
@@ -320,7 +321,7 @@ class dic_continuous_update_widget():
         def reset_coords_on_click():
             self.dic_mats.reset_cur_points()
             self.reprocess = True
-        self.reset_coords_button = tk.Button(self.window, text="Reset Control Points", command=reset_coords_on_click)
+        self.reset_coords_button = tk.Button(self.window, text="Reset Grid Point Pos.", command=reset_coords_on_click)
         self.reset_coords_button.place(x=820, y=200, height=40, width=160)
         
         # Add a button for adjusting dic params
@@ -330,6 +331,25 @@ class dic_continuous_update_widget():
             self.reprocess = True
         self.adjust_dic_params_button = tk.Button(self.window, text="Adjust DIC Parameters", command=adjust_dic_params_on_click)
         self.adjust_dic_params_button.place(x=820, y=250, height=40, width=160)
+        
+        # Add a button for adjusting dic params
+        def calc_backoff_stress_on_click():
+            # process image index for full image and name
+            cur = self.dic_mats.get_dic_par_mat_at_img_num(self.cur_img_num)
+            cur_force = cur[1]
+            
+            # do stress and strain calculations and write to output
+            [cur_stress, cur_strain_xx, cur_strain_yy, cur_strain_xy] = self.dic_mats.get_cur_stress_strain(cur_force, self.dic_params)
+            
+            # calc 90% backoff stress
+            cur_backoff_stress = cur_stress * 0.9
+            self.backoff_stress_label['text'] = '%0.1f MPa' %(cur_backoff_stress)
+            
+            
+        self.backoff_stress_button = tk.Button(self.window, text="Calc Backoff Stress", command=calc_backoff_stress_on_click)
+        self.backoff_stress_button.place(x=820, y=400, height=40, width=160)
+        self.backoff_stress_label = tk.Label(self.window, text='- MPa', font=("Arial", 16))
+        self.backoff_stress_label.place(x=820, y=450, height=40, width=160)
         
         self.update_plot()
         
@@ -391,8 +411,12 @@ class dic_continuous_update_widget():
         self.dic_mats.save_output_mat_to_file(self.dic_paths.get_output_full_dir())
         
         # display to screen
-        print('DIC Image Number: %i \t Stress: %0.2f MPa \t Strain_XX: %0.3f %%' 
-              %(cur_img_num, cur_stress, cur_strain_xx * 100))
+        if self.dic_params.is_sample_horizontal():
+            print('DIC Image Number: %i \t Stress: %0.2f MPa \t Strain_XX: %0.3f %%' 
+                  %(cur_img_num, cur_stress, cur_strain_xx * 100))
+        else:
+            print('DIC Image Number: %i \t Stress: %0.2f MPa \t Strain_YY: %0.3f %%' 
+                  %(cur_img_num, cur_stress, cur_strain_yy * 100))
         
         self.update_plot()
         
@@ -401,13 +425,23 @@ class dic_continuous_update_widget():
         
     def update_plot(self):
         # Add the patch to the Axes
+        fontsize = 20
         self.stress_strain_ax.cla()
+        # output = [img num, stress, strain_xx, strain_yy, strain_xy, screw]
         output = self.dic_mats.get_output_mat()
-        self.stress_strain_ax.scatter(output[:, 2] * 100, output[:, 1], c='b');
-        self.stress_strain_ax.set_xlabel('Macroscopic Strain (%)')
-        self.stress_strain_ax.set_ylabel('Macroscopic Stress (MPa)')
-        self.fig.suptitle('Current Stress: %0.2f MPa \t Current Strain_XX: %0.3f %%' 
-              %(output[-1, 1], output[-1, 2] * 100))
+        
+        if self.dic_params.is_sample_horizontal():
+            self.stress_strain_ax.scatter(output[:, 2] * 100, output[:, 1], c='b')
+            self.fig.suptitle('Current Stress: %0.2f MPa     Current Strain_XX: %0.3f %%' 
+                  %(output[-1, 1], output[-1, 2] * 100))
+        else:
+            self.stress_strain_ax.scatter(output[:, 3] * 100, output[:, 1], c='b')
+            self.fig.suptitle('Current Stress: %0.2f MPa     Current Strain_YY: %0.3f %%' 
+                  %(output[-1, 1], output[-1, 3] * 100), fontsize=fontsize)
+                
+        self.stress_strain_ax.set_xlabel('Macroscopic Strain (%)', fontsize=fontsize)
+        self.stress_strain_ax.set_ylabel('Macroscopic Stress (MPa)', fontsize=fontsize)
+        self.stress_strain_ax.tick_params(axis='both', which='major', labelsize=fontsize)
         
         self.canvas.draw()
 

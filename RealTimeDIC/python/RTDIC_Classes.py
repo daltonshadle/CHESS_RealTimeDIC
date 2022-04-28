@@ -52,8 +52,15 @@ class dic_matrices():
     # extra functions
     def process_dic_par_file(self, dic_par_dir):
         # day, month, day number, time, year, image number, load, screw position, extra
+        # {"0": "date", "1": "time", "2": "epoch", "3": "filenumber", "4": "TEN", "5": "Load1", "6": "SAM_BOT_ROT"}
+        # can eventually point to a .json file that has the data labeled in dic.par
         df = pd.read_csv(dic_par_dir, sep=" ", header=None)
-        self.dic_par_mat = np.array(df)[:, [5, 6, 7]]
+        
+        # image number, load, screw position
+        self.dic_par_mat = np.array(df)[:, [3, 5, 4]]
+        
+        # old dic.par format for image number, load, screw position
+        #self.dic_par_mat = np.array(df)[:, [5, 6, 7]]
     
     def load_dic_matrices_from_file(self, dic_matrices_dir):
         with open(dic_matrices_dir, "rb") as input_file:
@@ -181,7 +188,12 @@ class dic_parameters():
                  fixed_corr_dimen=[100, 100], 
                  moving_corr_dimen=[40, 40],
                  sample_width=1,
-                 sample_thickness=1):
+                 sample_thickness=1,
+                 sample_orientation='horizontal'):
+        
+        # declare constants
+        self.vert_const = ['v', 'vertical']
+        self.horz_const = ['h', 'horizontal']
         
         # initialize class variables
         self.grid_spacing = grid_spacing
@@ -189,6 +201,8 @@ class dic_parameters():
         self.moving_corr_dimen = moving_corr_dimen
         self.sample_width = sample_width
         self.sample_thickness = sample_thickness
+        self.sample_orientaiton = ''
+        self.set_sample_orientation(sample_orientation)
     
     # getters and setters
     def get_grid_spacing(self):
@@ -215,6 +229,19 @@ class dic_parameters():
         return self.sample_thickness
     def set_sample_thickness(self, sample_thickness):
         self.sample_thickness = sample_thickness
+    
+    def get_sample_orientation(self):
+        return self.sample_orientation
+    def set_sample_orientation(self, sample_orientation):
+        sample_orientation = str(sample_orientation).lower()
+        if sample_orientation in self.vert_const or sample_orientation in self.horz_const:
+            self.sample_orientation = sample_orientation
+        else:
+            raise ValueError("Sample orientation '%s' needs to be set as:\n\
+                  vertical: %s\n horizontal: %s" %(sample_orientation, self.vert_const, self.horz_const))
+    
+    def is_sample_horizontal(self):
+        return self.sample_orientation in self.horz_const
     
     def get_sample_area(self):
         return self.sample_width * self.sample_thickness
@@ -247,38 +274,67 @@ class dic_parameters():
 
 class dic_paths():
     def __init__(self, 
-                 base_dir=os.getcwd()):
+                 base_dir=os.getcwd(),
+                 dic_par_dir=os.getcwd(),
+                 dic_par_fname='dic.par',
+                 img_dir=os.getcwd(),
+                 img_fname_template='dic_%06i.tif',
+                 output_dir=os.getcwd(),
+                 output_fname='output.txt'
+                 ):
         
         # intialize class variables
         self.base_dir = base_dir
-        self.dic_par_dir = base_dir
-        self.dic_par_fname = 'dic.par'
-        self.img_dir = base_dir
-        self.img_fname_template = 'dic_%06i.tiff'
-        self.output_dir = base_dir
-        self.output_fname = 'output.txt'
+        self.dic_par_dir = dic_par_dir
+        self.dic_par_fname = dic_par_fname
+        self.img_dir = img_dir
+        self.img_fname_template = img_fname_template
+        self.output_dir = output_dir
+        self.output_fname = output_fname
+        
+        # set all class variables
+        self.set_base_dir(base_dir)
+        self.set_dic_par_dir(base_dir)
+        self.set_dic_par_fname(dic_par_fname)
+        self.set_img_dir(base_dir)
+        self.set_img_fname_template(img_fname_template)
+        self.set_output_dir(output_dir)
+        self.set_output_fname(output_fname)
+        
         self.first_img_num = 0
         
-    # setters and getters
+    # setters and getters  
     def get_base_dir(self):
         return self.base_dir
     def set_base_dir(self, base_dir):
-        self.base_dir = base_dir
+        if os.path.exists(base_dir):
+            self.base_dir = base_dir
+        else:
+            raise ValueError("Base directory '%s' does not exists" %(base_dir))
     
     def get_dic_par_dir(self):
         return self.dic_par_dir
     def set_dic_par_dir(self, dic_par_dir):
-        self.dic_par_dir = dic_par_dir
+        if os.path.exists(dic_par_dir):
+            self.dic_par_dir = dic_par_dir
+        else:
+            raise ValueError("Dic par directory '%s' does not exists" %(dic_par_dir))
     
     def get_dic_par_fname(self):
         return self.dic_par_fname
     def set_dic_par_fname(self, dic_par_fname):
-        self.dic_par_fname = dic_par_fname
+        if dic_par_fname.endswith('.par'):
+            self.dic_par_fname = dic_par_fname
+        else:
+            self.dic_par_fname = dic_par_fname + '.par'
     
     def get_img_dir(self):
         return self.img_dir
     def set_img_dir(self, img_dir):
-        self.img_dir = img_dir
+        if os.path.exists(img_dir):
+            self.img_dir = img_dir
+        else:
+            raise ValueError("Img directory '%s' does not exists" %(img_dir))
     
     def get_img_fname_template(self):
         return self.img_fname_template
@@ -288,12 +344,18 @@ class dic_paths():
     def get_output_dir(self):
         return self.output_dir
     def set_output_dir(self, output_dir):
-        self.output_dir = output_dir
+        if os.path.exists(output_dir):
+            self.output_dir = output_dir
+        else:
+            raise ValueError("Output directory '%s' does not exists" %(output_dir))
     
     def get_output_fname(self):
         return self.output_fname
     def set_output_fname(self, output_fname):
-        self.output_fname = output_fname
+        if output_fname.endswith('.txt'):
+            self.output_fname = output_fname
+        else:
+            self.output_fname = output_fname + '.txt'
     
     def get_first_img_num(self):
         return self.first_img_num
@@ -307,7 +369,8 @@ class dic_paths():
         
         dic_par_dir = tk.filedialog.askopenfilename(initialdir=self.base_dir, 
                                                     defaultextension='.par',
-                                                    filetypes=[("dic par files", "*.par")],
+                                                    filetypes=[("dic par files", "*.par"),
+                                                               ("All Files", "*.*")],
                                                     title='Select dic.par File')
         
         if not dic_par_dir:
@@ -327,13 +390,16 @@ class dic_paths():
         
         first_img_dir = tk.filedialog.askopenfilename(initialdir=self.base_dir, 
                                                     defaultextension='.tiff',
-                                                    filetypes=[("TIFF Files", "*.tiff")],
+                                                    filetypes=[("TIFF Files", "*.tiff"),
+                                                               ("TIFF Files", "*.tif"),
+                                                               ("All Files", "*.*")],
                                                     title='Select First DIC Image File')
         
         if not first_img_dir:
             quit()
         else:
             try:
+                print(first_img_dir)
                 self.set_img_dir(os.path.dirname(first_img_dir))
                 first_img_fname = os.path.basename(first_img_dir)
                 self.set_first_img_num(int((first_img_fname.split('_')[-1]).split('.')[0]))

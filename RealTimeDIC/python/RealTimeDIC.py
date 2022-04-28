@@ -13,7 +13,7 @@ Created on Tue Mar  8 14:57:43 2022
 #*****************************************************************************
 #%% IMPORTS
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 from CPCorrFunctions import process_correlations
 from RTDIC_Classes import dic_parameters, dic_paths, dic_matrices
@@ -22,20 +22,25 @@ from RTDIC_Widgets import dic_parameters_selector_widget, dic_continuous_update_
 #*****************************************************************************
 #%% USER INPUT
 
-base_dir = "/home/djs522/additional_sw/RealTimeDIC/CHESS_RealTimeDIC/example/dic_images/"
-img_template = 'dic_%06i.tiff'
+raw_dir = "/nfs/chess/raw/2022-2/id1a3/ko-3371-a/"
+aux_dir = "/nfs/chess/user/djs522/"
+output_fname = 'dictest_output.txt'
+img_template = 'dic_%06i.tif'
 sample_width = 1 # (mm) cross-sectional width of the sample for macro stress calculations
 sample_thickness = 1 # (mm) cross-sectional thickness of the sample for macro stress calculations
+sample_orientation_in_img = 'v' # describes sample orientaiton in image, 
+                                # can be 'v' = vertical, 'h'=horizontal
 
 #*****************************************************************************
 #%% INITIALIZE OBJECTS
 exp_dic_params = dic_parameters()
-exp_dic_paths = dic_paths(base_dir=base_dir)
+exp_dic_paths = dic_paths(base_dir=raw_dir, output_dir=aux_dir, output_fname=output_fname)
 exp_dic_mats = dic_matrices()
 
 exp_dic_paths.set_img_fname_template(img_template)
 exp_dic_params.set_sample_width(sample_width)
 exp_dic_params.set_sample_thickness(sample_thickness)
+exp_dic_params.set_sample_orientation(sample_orientation_in_img)
 
 #*****************************************************************************
 #%% OPEN DIC PAR FILE
@@ -57,7 +62,6 @@ first_img_dir = exp_dic_paths.get_first_img_dir()
 img_nums = exp_dic_mats.get_dic_par_mat()[:, 0]
 num_imgs = img_nums.size
 exp_dic_mats.reset_output_mat()
-
 
 # for each file to process...
 for i, cur_img_num in enumerate(img_nums):
@@ -91,13 +95,16 @@ for i, cur_img_num in enumerate(img_nums):
                                          cur_screw]))
     
     # display to screen
-    print('Image: %i / %i \t DIC Image Number: %i \t Stress: %0.2f MPa \t Strain_XX: %0.3f %%' 
-          %(i+1, num_imgs, cur_img_num, cur_stress, cur_strain_xx * 100))
+    if exp_dic_params.is_sample_horizontal():
+        print('Image: %i / %i \t DIC Image Number: %i \t Stress: %0.2f MPa \t Strain_XX: %0.3f %%' 
+              %(i+1, num_imgs, cur_img_num, cur_stress, cur_strain_xx * 100))
+    else:
+        print('Image: %i / %i \t DIC Image Number: %i \t Stress: %0.2f MPa \t Strain_YY: %0.3f %%' 
+              %(i+1, num_imgs, cur_img_num, cur_stress, cur_strain_yy * 100))
 
 exp_dic_mats.save_output_mat_to_file(exp_dic_paths.get_output_full_dir())
 
 #*****************************************************************************
 #%% START REAL TIME PROCESSING
-
 dcuw = dic_continuous_update_widget(exp_dic_paths, exp_dic_params, exp_dic_mats, prev_img_num=cur_img_num)
 
