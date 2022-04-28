@@ -95,8 +95,8 @@ def process_correlations(ref_img_dir, curr_img_dir, grid_coords,
     [curr_valid_coords, StdX, StdY, CorrCoef, errorInfos] = cpcorr(np.copy(prev_valid_coords), 
                                                            np.copy(grid_coords), 
                                                            curr_img, ref_img, 
-                                                           dic_params.get_fixed_corr_dimen(), 
-                                                           dic_params.get_moving_corr_dimen())
+                                                           dic_params.fixed_corr_dimen, 
+                                                           dic_params.moving_corr_dimen)
     
     return curr_valid_coords
 

@@ -26,10 +26,9 @@ class dic_parameters_selector_widget():
         
         self.window = tk.Tk()
         self.window.geometry("1000x800")
+        self.window.title('DIC Parameter Selector')
         
-        print(dic_paths.get_img_num_dir(dic_paths.get_first_img_num()))
-        self.first_img = cv2.imread(dic_paths.get_img_num_dir(dic_paths.get_first_img_num()), 0)
-        #self.first_img = skimage.io.imread(dic_paths.get_img_num_dir(dic_paths.get_first_img_num()))
+        self.first_img = cv2.imread(dic_paths.get_img_num_dir(dic_paths.first_img_num), 0)
         
         self.fig = Figure(figsize=(6,6))
         self.fig.suptitle("Use the left mouse button to select a region of interest")
@@ -81,7 +80,7 @@ class dic_parameters_selector_widget():
                     self.dic_params.load_dic_parameters_from_file(dic_params_dir)
                     
                     update_sliders()
-                    if self.dic_mats.get_ref_points().size != 0:
+                    if self.dic_mats.ref_points.size != 0:
                         self.update_plot()
                 except:
                     print("Something failed when loading the params file")
@@ -131,11 +130,11 @@ class dic_parameters_selector_widget():
                     try:
                         self.dic_mats.load_dic_matrices_from_file(dic_grid_dir)
                         
-                        self.dic_params.set_grid_spacing(self.dic_mats.calc_grid_spacing())
+                        self.dic_params.grid_spacing = self.dic_mats.calc_grid_spacing()
                         self.bound_box_array = self.dic_mats.calc_bounding_box()
                         
                         update_sliders()
-                        if self.dic_mats.get_ref_points().size != 0:
+                        if self.dic_mats.ref_points.size != 0:
                             self.update_plot()
                     except:
                         print("Something failed when loading grid file")
@@ -169,9 +168,9 @@ class dic_parameters_selector_widget():
         
             # add slider for grid spacing
             def grid_spacing_slider_change(event):
-                self.dic_params.set_grid_spacing([self.grid_width_slider.get(), 
-                                                  self.grid_height_slider.get()])
-                if self.dic_mats.get_ref_points().size != 0:
+                self.dic_params.grid_spacing = [self.grid_width_slider.get(), 
+                                                self.grid_height_slider.get()]
+                if self.dic_mats.ref_points.size != 0:
                     self.update_plot()
             
             self.grid_width_slider = tk.Scale(self.window, label='Grid Spacing Width', 
@@ -188,9 +187,9 @@ class dic_parameters_selector_widget():
         
         # add slider for fixed corr dimen
         def fixed_slider_change(event):
-            self.dic_params.set_fixed_corr_dimen([self.fixed_width_slider.get(), 
-                                                  self.fixed_height_slider.get()])
-            if self.dic_mats.get_ref_points().size != 0:
+            self.dic_params.fixed_corr_dimen = [self.fixed_width_slider.get(), 
+                                                self.fixed_height_slider.get()]
+            if self.dic_mats.ref_points.size != 0:
                 self.update_plot()
         
         self.fixed_width_slider = tk.Scale(self.window, label='Fixed Box Width', 
@@ -207,9 +206,9 @@ class dic_parameters_selector_widget():
         
         # add slider for moving corr dimen
         def moving_slider_change(event):
-            self.dic_params.set_moving_corr_dimen([self.moving_width_slider.get(), 
-                                                   self.moving_height_slider.get()])
-            if self.dic_mats.get_ref_points().size != 0:
+            self.dic_params.moving_corr_dimen = [self.moving_width_slider.get(), 
+                                                 self.moving_height_slider.get()]
+            if self.dic_mats.ref_points.size != 0:
                 self.update_plot()
         
         self.moving_width_slider = tk.Scale(self.window, label='Moving Box Width', 
@@ -227,16 +226,16 @@ class dic_parameters_selector_widget():
         
         def update_sliders():
             if adjust_grid:
-                self.grid_width_slider.set(dic_params.get_grid_spacing()[0])
-                self.grid_height_slider.set(dic_params.get_grid_spacing()[1])
-            self.fixed_width_slider.set(dic_params.get_fixed_corr_dimen()[0])
-            self.fixed_height_slider.set(dic_params.get_fixed_corr_dimen()[1])
-            self.moving_width_slider.set(dic_params.get_moving_corr_dimen()[0])
-            self.moving_height_slider.set(dic_params.get_moving_corr_dimen()[1])
+                self.grid_width_slider.set(self.dic_params.grid_spacing[0])
+                self.grid_height_slider.set(self.dic_params.grid_spacing[1])
+            self.fixed_width_slider.set(self.dic_params.fixed_corr_dimen[0])
+            self.fixed_height_slider.set(self.dic_params.fixed_corr_dimen[1])
+            self.moving_width_slider.set(self.dic_params.moving_corr_dimen[0])
+            self.moving_height_slider.set(self.dic_params.moving_corr_dimen[1])
         
         update_sliders()
         
-        if not adjust_grid and self.dic_mats.get_ref_points().size != 0:
+        if not adjust_grid and self.dic_mats.ref_points.size != 0:
             self.update_plot()
         
         # Add a button for quitting
@@ -252,9 +251,9 @@ class dic_parameters_selector_widget():
     def update_plot(self):
         # initialize local variables
         bbc = self.bound_box_array
-        fcd = self.dic_params.get_fixed_corr_dimen()
-        mcd = self.dic_params.get_moving_corr_dimen()
-        gs = self.dic_params.get_grid_spacing()
+        fcd = self.dic_params.fixed_corr_dimen
+        mcd = self.dic_params.moving_corr_dimen
+        gs = self.dic_params.grid_spacing
         
         # generate grid points
         x = np.linspace(np.min(bbc[:, 0]), np.max(bbc[:, 0]), 
@@ -266,7 +265,7 @@ class dic_parameters_selector_widget():
         
         xv, yv = np.meshgrid(x, y)
         grid_pts = np.vstack([xv.flatten(), yv.flatten()]).T.astype(float)
-        self.dic_mats.set_ref_points(grid_pts)
+        self.dic_mats.ref_points = grid_pts
             
         # generate rectangle patches        
         fixed_rect = patches.Rectangle((grid_pts[0, 0] - fcd[0] / 2, grid_pts[0, 1] - fcd[1] / 2), 
@@ -301,7 +300,7 @@ class dic_continuous_update_widget():
         
         self.window = tk.Tk()
         self.window.geometry("1000x800")
-        
+        self.window.title('RealTimeDIC Stress Strain Curve')
         
         self.fig = plt.figure(figsize=(6,6))
         self.stress_strain_ax = self.fig.add_subplot(111)
@@ -371,7 +370,7 @@ class dic_continuous_update_widget():
     
     def check_for_new_image(self):
         self.dic_mats.process_dic_par_file(self.dic_paths.get_dic_par_full_dir())
-        self.cur_img_num = self.dic_mats.get_dic_par_mat()[-1, 0]
+        self.cur_img_num = self.dic_mats.dic_par_mat[-1, 0]
         
         if (self.cur_img_num != self.prev_img_num) or (self.reprocess):
             self.process_img()
@@ -388,11 +387,11 @@ class dic_continuous_update_widget():
         cur_img_dir = self.dic_paths.get_img_num_dir(self.cur_img_num)
         
         # process the rest of the images
-        self.dic_mats.set_cur_points(process_correlations(self.dic_paths.get_first_img_dir(),
+        self.dic_mats.cur_points = process_correlations(self.dic_paths.get_first_img_dir(),
                                                          cur_img_dir, 
-                                                         self.dic_mats.get_ref_points(),
-                                                         self.dic_mats.get_cur_points(),
-                                                         self.dic_params))
+                                                         self.dic_mats.ref_points,
+                                                         self.dic_mats.cur_points,
+                                                         self.dic_params)
         
         # do stress and strain calculations and write to output
         [cur_stress, cur_strain_xx, cur_strain_yy, cur_strain_xy] = self.dic_mats.get_cur_stress_strain(cur_force, self.dic_params)
@@ -428,7 +427,7 @@ class dic_continuous_update_widget():
         fontsize = 20
         self.stress_strain_ax.cla()
         # output = [img num, stress, strain_xx, strain_yy, strain_xy, screw]
-        output = self.dic_mats.get_output_mat()
+        output = self.dic_mats.output_mat
         
         if self.dic_params.is_sample_horizontal():
             self.stress_strain_ax.scatter(output[:, 2] * 100, output[:, 1], c='b')

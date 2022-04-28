@@ -13,7 +13,6 @@ Created on Tue Mar  8 14:57:43 2022
 #*****************************************************************************
 #%% IMPORTS
 import numpy as np
-import matplotlib.pyplot as plt
 
 from CPCorrFunctions import process_correlations
 from RTDIC_Classes import dic_parameters, dic_paths, dic_matrices
@@ -33,14 +32,14 @@ sample_orientation_in_img = 'v' # describes sample orientaiton in image,
 
 #*****************************************************************************
 #%% INITIALIZE OBJECTS
-exp_dic_params = dic_parameters()
-exp_dic_paths = dic_paths(base_dir=raw_dir, output_dir=aux_dir, output_fname=output_fname)
+exp_dic_params = dic_parameters(sample_width=sample_width, 
+                                sample_thickness=sample_thickness, 
+                                sample_orientation=sample_orientation_in_img)
+exp_dic_paths = dic_paths(base_dir=raw_dir, dic_par_dir=raw_dir, img_dir=raw_dir, 
+                          img_fname_template=img_template, output_dir=aux_dir, 
+                          output_fname=output_fname)
 exp_dic_mats = dic_matrices()
 
-exp_dic_paths.set_img_fname_template(img_template)
-exp_dic_params.set_sample_width(sample_width)
-exp_dic_params.set_sample_thickness(sample_thickness)
-exp_dic_params.set_sample_orientation(sample_orientation_in_img)
 
 #*****************************************************************************
 #%% OPEN DIC PAR FILE
@@ -59,7 +58,7 @@ dpsw = dic_parameters_selector_widget(exp_dic_paths, exp_dic_params, exp_dic_mat
 #%% PROCESS CURRENT IMAGES
 
 first_img_dir = exp_dic_paths.get_first_img_dir()
-img_nums = exp_dic_mats.get_dic_par_mat()[:, 0]
+img_nums = exp_dic_mats.dic_par_mat[:, 0]
 num_imgs = img_nums.size
 exp_dic_mats.reset_output_mat()
 
@@ -74,16 +73,16 @@ for i, cur_img_num in enumerate(img_nums):
     
     if i == 0:
         # process second image
-        exp_dic_mats.set_cur_points(process_correlations(first_img_dir, cur_img_dir, 
-                                                         exp_dic_mats.get_ref_points(),
-                                                         exp_dic_mats.get_ref_points(),
-                                                         exp_dic_params))
+        exp_dic_mats.cur_points = process_correlations(first_img_dir, cur_img_dir, 
+                                                         exp_dic_mats.ref_points,
+                                                         exp_dic_mats.ref_points,
+                                                         exp_dic_params)
     else:
         # process the rest of the images
-        exp_dic_mats.set_cur_points(process_correlations(first_img_dir, cur_img_dir, 
-                                                         exp_dic_mats.get_ref_points(),
-                                                         exp_dic_mats.get_cur_points(),
-                                                         exp_dic_params))
+        exp_dic_mats.cur_points = process_correlations(first_img_dir, cur_img_dir, 
+                                                         exp_dic_mats.ref_points,
+                                                         exp_dic_mats.cur_points,
+                                                         exp_dic_params)
     
     # do stress and strain calculations and write to output
     [cur_stress, cur_strain_xx, cur_strain_yy, cur_strain_xy] = exp_dic_mats.get_cur_stress_strain(cur_force, exp_dic_params)
