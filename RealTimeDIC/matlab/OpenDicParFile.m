@@ -35,9 +35,9 @@ function [file_mat] = OpenDicParFile(full_name)
 
 % open dic.par file and read info
 fid = fopen(full_name);
-info = textscan(fid,'%s %s %s %s %s %f %f %f %s %s');
-
+%info = textscan(fid,'%s %s %s %s %s %f %f %f %s %s');
+info = textscan(fid,'%s %s %s %f %f %f %f');
 % save off image index (6), force (7), screw position (8)
-file_mat = [info{6} info{7} info{8}];
+file_mat = [info{4} info{6} info{5}];
 fclose(fid);
 end

@@ -20,10 +20,11 @@ clc; clear;
 %% user input paramters
 
 % DIC Parameters
-grid_spacing = 40; % spacing of correlation points
-fixed_corr_dimen = [60, 120]; % (pixels) fixed correlation area dimensions for control point [height, width]
+grid_spacing = 80; % spacing of correlation points
+fixed_corr_dimen = [80, 150]; % (pixels) fixed correlation area dimensions for control point [height, width]
 moving_sub_dimen = [40, 40]; % (pixels) moving subregion area dimensions for control point [height, width]
-output_filename='dp_718_2_fatigue.txt';
+output_filename = "dp718-1_nov2020.txt";
+base_path = "/media/djs522/djs522_nov2020/chess_2020_11/dp718-1/";
 
 % Sample Geometry
 sample_width = 1; % (mm) cross-sectional width of the smaple for macro stress calculations
@@ -33,9 +34,10 @@ sample_thickness = 1; % (mm) cross-sectional thickness of the smaple for macro s
 save_stress_strain = true;
 
 %% select the dic.par file for current sample, contains image index, force, and screw position
-[par_file, file_mat] = ProcessDicParFile();
+[par_file, file_mat] = ProcessDicParFile(base_path);
 
 %% select the reference image
+% START DIC AT dic_002013, dic_003215
 [image_struct, first_image_index, first_image_struct] = SelectFirstImage(file_mat, par_file.dir);
 
 %% generate grid from the first reference image
@@ -45,6 +47,10 @@ save_stress_strain = true;
 %% calculate stress and strain
 % Need to process up until the second to last image. Then save all of that
 % data off so it can be loaded in by the real time program.
+
+% booleans for doing reference processing and double processing of dic
+reference_process = false;
+double_process = false;
 
 % calculate smaple cross-sectional area for stress calculations
 sample_area = sample_width*sample_thickness;
@@ -78,7 +84,17 @@ for i=1:num_images
         valid_x = valid_ref_x;
         valid_y = valid_ref_y;
     else
-        % process the rest of the images
+        % process the rest of the images, double processing, if necessary
+        if reference_process
+            [valid_x, valid_y] = ProcessCorrelations(...
+                first_image_struct.full_name, curr_image_full_name, ...
+                grid_x, grid_y, grid_x, grid_y, fixed_corr_dimen, moving_sub_dimen);
+        end
+        if double_process
+            [valid_x, valid_y] = ProcessCorrelations(...
+                first_image_struct.full_name, curr_image_full_name, ...
+                grid_x, grid_y, valid_x, valid_y, fixed_corr_dimen, moving_sub_dimen);
+        end
         [valid_x, valid_y] = ProcessCorrelations(...
             first_image_struct.full_name, curr_image_full_name, ...
             grid_x, grid_y, valid_x, valid_y, fixed_corr_dimen, moving_sub_dimen);
@@ -91,8 +107,8 @@ for i=1:num_images
     stress(i) = file_mat(image_indices(i),2)/(sample_area);
     
     % write to output file
-    output=[file_mat(image_indices(i),1),stress(i),strain_xx(i),strain_yy(i),strain_xy(i)];
-    dlmwrite(output_filename,output,'delimiter','\t','precision','%.6f','-append')
+    output=[file_mat(image_indices(i),1), stress(i), strain_xx(i), strain_yy(i), strain_xy(i), file_mat(i, 3)];
+    dlmwrite(output_filename,output,'delimiter','\t','precision','%.6f','-append');
     
     % display to screen
     disp(['File: ' num2str(i) ', Image: ' num2str(file_mat(image_indices(i),1))])
@@ -109,6 +125,7 @@ xlabel('Macroscopic Strain')
 ylabel('Macroscopic Stress (MPa)')
 grid on
 
+
 %% process the rest of the images in a while loop --> built-in while loop in "Continuous Update"
 % ASSUMES THAT YOU HAVE ALREADY PROCESSED ALL THE DATA THAT YOU HAVE
 hold on
@@ -121,8 +138,8 @@ grid on
 
 %% Save stress and strain values
 if save_stress_strain
-    save('strain_xx.mat', 'strain_xx')
-    save('strain_xy.mat', 'strain_xy')
-    save('strain_yy.mat', 'strain_yy')
-    save('stress.mat', 'stress')
+    save('ss718-1_strain_xx.mat', 'strain_xx')
+    save('ss718-1_strain_xy.mat', 'strain_xy')
+    save('ss718-1_strain_yy.mat', 'strain_yy')
+    save('ss718-1_stress.mat', 'stress')
 end
