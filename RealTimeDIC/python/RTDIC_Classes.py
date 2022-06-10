@@ -5,9 +5,12 @@
 #%% ***************************************************************************
 # IMPORTS
 import os
+
 import numpy as np
 
 import pickle
+
+import json
 
 import pandas as pd
 
@@ -58,14 +61,25 @@ class dic_matrices():
         self._output_mat = output_mat
         
     # extra functions
-    def process_dic_par_file(self, dic_par_dir):
+    def process_dic_par_file(self, dic_par_dir, json_file):
         # day, month, day number, time, year, image number, load, screw position, extra
         # {"0": "date", "1": "time", "2": "epoch", "3": "filenumber", "4": "TEN", "5": "Load1", "6": "SAM_BOT_ROT"}
         # can eventually point to a .json file that has the data labeled in dic.par
         df = pd.read_csv(dic_par_dir, sep=" ", header=None)
         
+        # load json file and extract column numbers for 'image number', 'load', and 'screw position'
+        json_dict = json.load(json_file)
+        column_names = ["image_number", "load", "screw_position"]
+        column_nums = [0] * 3
+        index = 0
+        for name in column_names:
+            for key in json_dict:
+                if json_dict.get(key).lower() == name:
+                    column_nums[index] = int(key)
+                    index+=1
+                    break;
         # image number, load, screw position
-        self._dic_par_mat = np.array(df)[:, [3, 5, 4]]
+        self._dic_par_mat = np.array(df)[:, column_nums]
         
         # old dic.par format for image number, load, screw position
         #self._dic_par_mat = np.array(df)[:, [5, 6, 7]]
@@ -294,6 +308,8 @@ class dic_parameters():
 class dic_paths():
     def __init__(self, 
                  base_dir=os.getcwd(),
+                 dic_json_dir=os.getcwd(),
+                 dic_json_fname='dic.json',
                  dic_par_dir=os.getcwd(),
                  dic_par_fname='dic.par',
                  img_dir=os.getcwd(),
@@ -304,6 +320,8 @@ class dic_paths():
         
         # intialize class variables
         self._base_dir = base_dir
+        self._dic_json_dir = dic_json_dir
+        self._dic_json_fname = dic_json_fname
         self._dic_par_dir = dic_par_dir
         self._dic_par_fname = dic_par_fname
         self._img_dir = img_dir
@@ -323,6 +341,26 @@ class dic_paths():
         else:
             raise ValueError("Base directory '%s' does not exists" %(base_dir))
     
+    @property
+    def dic_json_dir(self):
+        return self._dic_json_dir
+    @dic_json_dir.setter
+    def dic_json_dir(self, dic_json_dir):
+        if os.path.exists(dic_json_dir):
+            self._dic_json_dir = dic_json_dir
+        else:
+            raise ValueError("Dic json directory '%s' does not exists" %(dic_json_dir))
+
+    @property
+    def dic_json_fname(self):
+        return self._dic_json_fname
+    @dic_json_fname.setter
+    def dic_json_fname(self, dic_json_fname):
+        if dic_json_fname.endswith('.json'):
+            self._dic_json_fname = dic_json_fname
+        else:
+            self._dic_json_fname = dic_json_fname + '.json'
+
     @property
     def dic_par_dir(self):
         return self._dic_par_dir
@@ -391,20 +429,28 @@ class dic_paths():
     def open_dic_par_file(self, dic_mats):
         root = tk.Tk()
         root.withdraw()
-        
+        # user selects json file to use
+        dic_json_dir = tk.filedialog.askopenfilename(initialdir=self._dic_json_dir,
+                                                    defaultextension=".json",
+                                                    filetypes=[("dic json files", "*.json"),
+                                                               ("All Files", "*.*")],
+                                                    title="Select dic.json File")
+        # user selects par file to use
         dic_par_dir = tk.filedialog.askopenfilename(initialdir=self._dic_par_dir, 
                                                     defaultextension='.par',
                                                     filetypes=[("dic par files", "*.par"),
                                                                ("All Files", "*.*")],
                                                     title='Select dic.par File')
-        
         if not dic_par_dir:
             quit()
         else:
             try:
+                self.dic_json_dir = os.path.dirname(dic_json_dir)
+                self.dic_json_fname = os.path.basename(dic_json_dir)
+                json_file = open(dic_json_dir)
                 self.dic_par_dir = os.path.dirname(dic_par_dir)
                 self.dic_par_fname = os.path.basename(dic_par_dir)
-                dic_mats.process_dic_par_file(dic_par_dir)
+                dic_mats.process_dic_par_file(dic_par_dir, json_file)
             except Exception as e:
                 print(e)
                 self.open_dic_par_file(dic_mats)
@@ -435,7 +481,8 @@ class dic_paths():
         return os.path.join(self._img_dir, self._img_fname_template %(img_num))
     def get_first_img_dir(self):
         return self.get_img_num_dir(self._first_img_num)
-    
+    def get_dic_json_full_dir(self):
+        return os.path.join(self._dic_json_dir, self._dic_json_fname)
     def get_dic_par_full_dir(self):
         return os.path.join(self._dic_par_dir, self._dic_par_fname)
     def get_output_full_dir(self):
