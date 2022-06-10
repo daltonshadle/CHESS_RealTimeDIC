@@ -21,10 +21,10 @@ from RTDIC_Widgets import dic_parameters_selector_widget, dic_continuous_update_
 #*****************************************************************************
 #%% USER INPUT
 
-raw_dir = "/nfs/chess/raw/2022-2/id1a3/ko-3371-a/"
-aux_dir = "/nfs/chess/user/djs522/"
+raw_dir = "/Users/jacksonearls/documents/GitHub/CHESS_RealTimeDIC/example/"
+aux_dir = "/Users/jacksonearls/documents/GitHub/CHESS_RealTimeDIC/example/"
 output_fname = 'dictest_output.txt'
-img_template = 'dic_%06i.tif'
+img_template = 'dic_%06i.tiff'
 sample_width = 1 # (mm) cross-sectional width of the sample for macro stress calculations
 sample_thickness = 1 # (mm) cross-sectional thickness of the sample for macro stress calculations
 sample_orientation_in_img = 'v' # describes sample orientaiton in image, 
@@ -35,14 +35,14 @@ sample_orientation_in_img = 'v' # describes sample orientaiton in image,
 exp_dic_params = dic_parameters(sample_width=sample_width, 
                                 sample_thickness=sample_thickness, 
                                 sample_orientation=sample_orientation_in_img)
-exp_dic_paths = dic_paths(base_dir=raw_dir, dic_par_dir=raw_dir, img_dir=raw_dir, 
+exp_dic_paths = dic_paths(base_dir=raw_dir, dic_json_dir=raw_dir, dic_par_dir=raw_dir, img_dir=raw_dir, 
                           img_fname_template=img_template, output_dir=aux_dir, 
                           output_fname=output_fname)
 exp_dic_mats = dic_matrices()
 
 
 #*****************************************************************************
-#%% OPEN DIC PAR FILE
+#%% OPEN DIC PAR FILE AND CORRESPONDING JSON FILE
 exp_dic_paths.open_dic_par_file(exp_dic_mats)
 
 #*****************************************************************************
@@ -106,4 +106,3 @@ exp_dic_mats.save_output_mat_to_file(exp_dic_paths.get_output_full_dir())
 #*****************************************************************************
 #%% START REAL TIME PROCESSING
 dcuw = dic_continuous_update_widget(exp_dic_paths, exp_dic_params, exp_dic_mats, prev_img_num=cur_img_num)
-

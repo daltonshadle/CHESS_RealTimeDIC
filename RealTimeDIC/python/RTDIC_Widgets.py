@@ -27,7 +27,6 @@ class dic_parameters_selector_widget():
         self.window = tk.Tk()
         self.window.geometry("1000x800")
         self.window.title('DIC Parameter Selector')
-        
         self.first_img = cv2.imread(dic_paths.get_img_num_dir(dic_paths.first_img_num), 0)
         
         self.fig = Figure(figsize=(6,6))
@@ -369,7 +368,8 @@ class dic_continuous_update_widget():
         self.window.mainloop()
     
     def check_for_new_image(self):
-        self.dic_mats.process_dic_par_file(self.dic_paths.get_dic_par_full_dir())
+        json_file = open(self.dic_paths.get_dic_json_full_dir())
+        self.dic_mats.process_dic_par_file(self.dic_paths.get_dic_par_full_dir(), json_file)
         self.cur_img_num = self.dic_mats.dic_par_mat[-1, 0]
         
         if (self.cur_img_num != self.prev_img_num) or (self.reprocess):
