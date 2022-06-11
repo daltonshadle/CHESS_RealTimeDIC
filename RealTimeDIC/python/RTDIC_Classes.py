@@ -61,23 +61,11 @@ class dic_matrices():
         self._output_mat = output_mat
         
     # extra functions
-    def process_dic_par_file(self, dic_par_dir, json_file):
+    def process_dic_par_file(self, dic_par_dir, column_nums):
         # day, month, day number, time, year, image number, load, screw position, extra
         # {"0": "date", "1": "time", "2": "epoch", "3": "filenumber", "4": "TEN", "5": "Load1", "6": "SAM_BOT_ROT"}
         # can eventually point to a .json file that has the data labeled in dic.par
         df = pd.read_csv(dic_par_dir, sep=" ", header=None)
-        
-        # load json file and extract column numbers for 'image number', 'load', and 'screw position'
-        json_dict = json.load(json_file)
-        column_names = ["image_number", "load", "screw_position"]
-        column_nums = [0] * 3
-        index = 0
-        for name in column_names:
-            for key in json_dict:
-                if json_dict.get(key).lower() == name:
-                    column_nums[index] = int(key)
-                    index+=1
-                    break;
         # image number, load, screw position
         self._dic_par_mat = np.array(df)[:, column_nums]
         
@@ -310,6 +298,7 @@ class dic_paths():
                  base_dir=os.getcwd(),
                  dic_json_dir=os.getcwd(),
                  dic_json_fname='dic.json',
+                 json_col_nums=[0]*3,
                  dic_par_dir=os.getcwd(),
                  dic_par_fname='dic.par',
                  img_dir=os.getcwd(),
@@ -322,6 +311,7 @@ class dic_paths():
         self._base_dir = base_dir
         self._dic_json_dir = dic_json_dir
         self._dic_json_fname = dic_json_fname
+        self._json_col_nums = json_col_nums
         self._dic_par_dir = dic_par_dir
         self._dic_par_fname = dic_par_fname
         self._img_dir = img_dir
@@ -350,6 +340,16 @@ class dic_paths():
             self._dic_json_dir = dic_json_dir
         else:
             raise ValueError("Dic json directory '%s' does not exists" %(dic_json_dir))
+    
+    @property
+    def json_col_nums(self):
+        return self._json_col_nums
+    @json_col_nums.setter
+    def json_col_nums(self, json_col_nums):
+        if len(json_col_nums) == 3:
+            self._json_col_nums = json_col_nums
+        else:
+            raise ValueError("Only three columns can be extracted from the json file")
 
     @property
     def dic_json_fname(self):
@@ -448,9 +448,21 @@ class dic_paths():
                 self.dic_json_dir = os.path.dirname(dic_json_dir)
                 self.dic_json_fname = os.path.basename(dic_json_dir)
                 json_file = open(dic_json_dir)
+                json_dict = json.load(json_file)
+                i = 0
+                print("\nColumn and Key Pairs for dic.par")
+                print(*json_dict.items())
+                
+                prompt_item_list = ['Image Number', 'Load', 'Screw Position']
+                while 3 > i:
+                    prompt = input("\nChose %s column to import. Press q to quit. \n" %(prompt_item_list[i]))
+                    if input == "q":
+                        break
+                    self.json_col_nums[i] = int(prompt)
+                    i+=1
                 self.dic_par_dir = os.path.dirname(dic_par_dir)
                 self.dic_par_fname = os.path.basename(dic_par_dir)
-                dic_mats.process_dic_par_file(dic_par_dir, json_file)
+                dic_mats.process_dic_par_file(dic_par_dir, self.json_col_nums)
             except Exception as e:
                 print(e)
                 self.open_dic_par_file(dic_mats)
@@ -483,6 +495,8 @@ class dic_paths():
         return self.get_img_num_dir(self._first_img_num)
     def get_dic_json_full_dir(self):
         return os.path.join(self._dic_json_dir, self._dic_json_fname)
+    def get_json_col_nums(self):
+        return self.json_col_nums
     def get_dic_par_full_dir(self):
         return os.path.join(self._dic_par_dir, self._dic_par_fname)
     def get_output_full_dir(self):

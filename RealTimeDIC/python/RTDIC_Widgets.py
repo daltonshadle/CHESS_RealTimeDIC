@@ -368,8 +368,7 @@ class dic_continuous_update_widget():
         self.window.mainloop()
     
     def check_for_new_image(self):
-        json_file = open(self.dic_paths.get_dic_json_full_dir())
-        self.dic_mats.process_dic_par_file(self.dic_paths.get_dic_par_full_dir(), json_file)
+        self.dic_mats.process_dic_par_file(self.dic_paths.get_dic_par_full_dir(), self.dic_paths.get_json_col_nums())
         self.cur_img_num = self.dic_mats.dic_par_mat[-1, 0]
         
         if (self.cur_img_num != self.prev_img_num) or (self.reprocess):
