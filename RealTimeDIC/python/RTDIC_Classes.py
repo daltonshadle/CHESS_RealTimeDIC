@@ -450,10 +450,12 @@ class dic_paths():
                 json_file = open(dic_json_dir)
                 json_dict = json.load(json_file)
                 i = 0
+                print("\nColumn and Key Pairs for dic.par")
+                print(*json_dict.items())
+                
+                prompt_item_list = ['Image Number', 'Load', 'Screw Position']
                 while 3 > i:
-                    print("\n")
-                    print(*json_dict.items())
-                    prompt = input("\nChose a column to import. Press q to quit. \n")
+                    prompt = input("\nChose %s column to import. Press q to quit. \n" %(prompt_item_list[i]))
                     if input == "q":
                         break
                     self.json_col_nums[i] = int(prompt)
