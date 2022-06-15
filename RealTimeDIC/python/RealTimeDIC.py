@@ -16,7 +16,7 @@ import numpy as np
 
 from CPCorrFunctions import process_correlations
 from RTDIC_Classes import dic_parameters, dic_paths, dic_matrices
-from RTDIC_Widgets import dic_parameters_selector_widget, dic_continuous_update_widget
+from RTDIC_Widgets import dic_parameters_selector_widget, dic_continuous_update_widget, dic_field_value_widget
 
 #*****************************************************************************
 #%% USER INPUT
