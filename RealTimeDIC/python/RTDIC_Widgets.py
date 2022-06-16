@@ -450,7 +450,6 @@ class dic_continuous_update_widget():
 
 class dic_field_value_widget():
     def __init__(self, img_path, dic_mats):
-        
         self.img_path = img_path
         self.dic_mats = dic_mats
         
@@ -475,6 +474,32 @@ class dic_field_value_widget():
 
         cbar = plt.colorbar(field_scatter, ax=self.first_img_ax, shrink=0.68)
         cbar.set_label('Magnitude')
+
+        # Add a button for Displacement x
+        def displacement_x():
+            print("This function is not yet finished")
+        self.adjust_dic_params_button = tk.Button(self.window, text="Displacement X", command=displacement_x)
+        self.adjust_dic_params_button.place(x=820, y=150, height=40, width=160)
+
+        def displacement_y():
+            print("This function is not yet finished")
+        self.adjust_dic_params_button = tk.Button(self.window, text="Displacement Y", command=displacement_y)
+        self.adjust_dic_params_button.place(x=820, y=200, height=40, width=160)
+
+        def strain_xx():
+            print("This function is not yet finished")
+        self.adjust_dic_params_button = tk.Button(self.window, text="Strain XX", command=strain_xx)
+        self.adjust_dic_params_button.place(x=820, y=250, height=40, width=160)
+
+        def strain_yy():
+            print("This function is not yet finished")
+        self.adjust_dic_params_button = tk.Button(self.window, text="Strain YY", command=strain_yy)
+        self.adjust_dic_params_button.place(x=820, y=300, height=40, width=160)
+
+        def strain_xy():
+            print("This function is not yet finished")
+        self.adjust_dic_params_button = tk.Button(self.window, text="Strain XY", command=strain_xy)
+        self.adjust_dic_params_button.place(x=820, y=350, height=40, width=160)
         
         
         # Add a button for quitting
