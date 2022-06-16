@@ -17,3 +17,4 @@
 .cache/
 *.DS_Store
 *.pyc
+*.txt
