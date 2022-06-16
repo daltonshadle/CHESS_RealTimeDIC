@@ -455,12 +455,12 @@ class dic_field_value_widget():
         
         self.window = tk.Tk()
         self.window.geometry("1000x800")
-        self.window.title('DIC Parameter Selector')
+        self.window.title('Field Visualizer')
         self.first_img = cv2.imread(img_path, 0)
         
         self.fig = Figure(figsize=(6,6))
         self.first_img_ax = self.fig.add_subplot(111)
-        pos = self.first_img_ax.imshow(self.first_img, cmap='Greys_r')
+        self.first_img_ax.imshow(self.first_img, cmap='Greys_r')
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.window)
         self.canvas.get_tk_widget().place(x=0, y=0, height=800, width=800)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.window)
@@ -470,9 +470,9 @@ class dic_field_value_widget():
 
         field_data = self.dic_mats.field_data
 
-        self.first_img_ax.scatter(x ,y , s=15, c=field_data, cmap='hsv')
+        field_scatter = self.first_img_ax.scatter(x ,y , s=15, c=field_data, cmap='hsv')
 
-        cbar = plt.colorbar(pos, ax=self.first_img_ax, shrink=0.68)
+        cbar = plt.colorbar(field_scatter, ax=self.first_img_ax, shrink=0.68)
         cbar.set_label('Magnitude')
 
         # Add a button for Displacement x

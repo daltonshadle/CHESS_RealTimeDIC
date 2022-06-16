@@ -47,6 +47,9 @@ class dic_matrices():
     @ref_points.setter
     def ref_points(self, ref_points):
         self._ref_points = ref_points
+        # TODO: Remove temporary code for field_data, only used for testing
+        if not self._field_data.size:
+            self._field_data = self._ref_points[:, 0] # set to ref x-positions
     
     @property
     def cur_points(self):
