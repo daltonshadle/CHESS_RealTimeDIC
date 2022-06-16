@@ -322,6 +322,11 @@ class dic_continuous_update_widget():
         self.reset_coords_button = tk.Button(self.window, text="Reset Grid Point Pos.", command=reset_coords_on_click)
         self.reset_coords_button.place(x=820, y=200, height=40, width=160)
         
+        def show_field_data():
+            dic_field_value_widget(self.dic_paths.get_img_num_dir(self.dic_paths.first_img_num), self.dic_mats)
+        self.adjust_dic_params_button = tk.Button(self.window, text="View Field Data", command=show_field_data)
+        self.adjust_dic_params_button.place(x=820, y=300, height=40, width=160)
+
         # Add a button for adjusting dic params
         def adjust_dic_params_on_click():
             dpsw = dic_parameters_selector_widget(self.dic_paths, self.dic_params, self.dic_mats, adjust_grid=False)
@@ -443,3 +448,42 @@ class dic_continuous_update_widget():
         
         self.canvas.draw()
 
+class dic_field_value_widget():
+    def __init__(self, img_path, dic_mats):
+        
+        self.img_path = img_path
+        self.dic_mats = dic_mats
+        
+        self.window = tk.Tk()
+        self.window.geometry("1000x800")
+        self.window.title('Field Visualizer')
+        self.first_img = cv2.imread(img_path, 0)
+        
+        self.fig = Figure(figsize=(6,6))
+        self.first_img_ax = self.fig.add_subplot(111)
+        self.first_img_ax.imshow(self.first_img, cmap='Greys_r')
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.window)
+        self.canvas.get_tk_widget().place(x=0, y=0, height=800, width=800)
+        self.toolbar = NavigationToolbar2Tk(self.canvas, self.window)
+        
+        x = self.dic_mats._ref_points[:, 0]
+        y = self.dic_mats._ref_points[:, 1]
+
+        field_data = self.dic_mats.field_data
+
+        field_scatter = self.first_img_ax.scatter(x ,y , s=15, c=field_data, cmap='hsv')
+
+        cbar = plt.colorbar(field_scatter, ax=self.first_img_ax, shrink=0.68)
+        cbar.set_label('Magnitude')
+        
+        
+        # Add a button for quitting
+        def on_closing(root):
+            root.destroy()
+            root.quit()            
+        self.quit_button = tk.Button(self.window, text="Quit", command=lambda root=self.window:on_closing(root))
+        self.quit_button.place(x=820, y=700, height=40, width=160)
+        self.window.protocol("WM_DELETE_WINDOW", lambda root=self.window:on_closing(root))
+        self.window.mainloop()
+
+# %%

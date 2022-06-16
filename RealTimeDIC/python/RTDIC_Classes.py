@@ -23,13 +23,15 @@ class dic_matrices():
                  dic_par_mat=np.array([]), 
                  ref_points=np.array([]), 
                  cur_points=np.array([]),
-                 output_mat=np.array([])):
+                 output_mat=np.array([]),
+                 field_data=np.array([])):
         
         # initialize class variables
         self._dic_par_mat = dic_par_mat
         self._ref_points = ref_points
         self._cur_points = cur_points
         self._output_mat = output_mat
+        self._field_data = field_data
     
     # setters and getters
     @property
@@ -45,6 +47,9 @@ class dic_matrices():
     @ref_points.setter
     def ref_points(self, ref_points):
         self._ref_points = ref_points
+        # TODO: Remove temporary code for field_data, only used for testing
+        if not self._field_data.size:
+            self._field_data = self._ref_points[:, 0] # set to ref x-positions
     
     @property
     def cur_points(self):
@@ -59,6 +64,13 @@ class dic_matrices():
     @output_mat.setter
     def output_mat(self, output_mat):
         self._output_mat = output_mat
+
+    @property
+    def field_data(self):
+        return self._field_data
+    @field_data.setter
+    def field_data(self, field_data):
+        self._field_data = field_data
         
     # extra functions
     def process_dic_par_file(self, dic_par_dir, column_nums):
@@ -79,6 +91,7 @@ class dic_matrices():
              self._ref_points = e.ref_points
              self._cur_points = e.cur_points
              self._output_mat = e.output_mat
+             self._field_data = e.field_data
              
     def save_dic_matrices_to_file(self, dic_matrices_dir):
         with open(dic_matrices_dir, "wb") as output_file:
