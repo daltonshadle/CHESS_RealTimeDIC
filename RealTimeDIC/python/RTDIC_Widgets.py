@@ -14,6 +14,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.figure import Figure
 
 from CPCorrFunctions import process_correlations
+from RTDIC_Classes import Q4_element_field
 
 # ***************************************************************************
 # CLASS DECLARATION
@@ -68,21 +69,22 @@ class dic_parameters_selector_widget():
             root = tk.Tk()
             root.withdraw()
             
-            dic_params_dir = tk.filedialog.askopenfilename(initialdir=self.dic_paths.get_output_dir(),
+            dic_params_dir = tk.filedialog.askopenfilename(initialdir=self.dic_paths.output_dir,
                                                            title='Select DIC Parameters File')
             
             if not dic_params_dir:
                 pass
             else:
                 try:
-                    self.dic_paths.set_output_dir(os.path.dirname(dic_params_dir))
+                    self.dic_paths.output_dir = os.path.dirname(dic_params_dir)
                     self.dic_params.load_dic_parameters_from_file(dic_params_dir)
                     
                     update_sliders()
                     if self.dic_mats.ref_points.size != 0:
                         self.update_plot()
-                except:
+                except Exception as e:
                     print("Something failed when loading the params file")
+                    print(e)
                     pass
             
             # update sliders
@@ -96,17 +98,18 @@ class dic_parameters_selector_widget():
             root.withdraw()
             
             dic_params_dir_fname = tk.filedialog.asksaveasfilename(confirmoverwrite=False,
-                                                                 initialdir=self.dic_paths.get_output_dir(),
+                                                                 initialdir=self.dic_paths.output_dir,
                                                                  title='Save DIC Parameters')
             
             if not dic_params_dir_fname:
                 pass
             else:
                 try:
-                    self.dic_paths.set_output_dir(os.path.dirname(dic_params_dir_fname))
+                    self.dic_paths.output_dir = os.path.dirname(dic_params_dir_fname)
                     self.dic_params.save_dic_parameters_to_file(dic_params_dir_fname)
-                except:
+                except Exception as e:
                     print("Something failed when saving the params file")
+                    print(e)
                     pass
             
         self.save_params_button = tk.Button(self.window, text="Save DIC Parameters", command=save_params_on_click)
@@ -120,7 +123,7 @@ class dic_parameters_selector_widget():
                 root = tk.Tk()
                 root.withdraw()
                 
-                dic_grid_dir = tk.filedialog.askopenfilename(initialdir=self.dic_paths.get_output_dir(),
+                dic_grid_dir = tk.filedialog.askopenfilename(initialdir=self.dic_paths.output_dir,
                                                                title='Select DIC Grid File')
                 
                 if not dic_grid_dir:
@@ -135,8 +138,9 @@ class dic_parameters_selector_widget():
                         update_sliders()
                         if self.dic_mats.ref_points.size != 0:
                             self.update_plot()
-                    except:
+                    except Exception as e:
                         print("Something failed when loading grid file")
+                        print(e)
                         pass
                 # update grid spacing and sliders
             self.load_grid_button = tk.Button(self.window, text="Load Grid", command=load_grid_on_click)
@@ -149,17 +153,18 @@ class dic_parameters_selector_widget():
                 root.withdraw()
                 
                 dic_grid_dir_fname = tk.filedialog.asksaveasfilename(confirmoverwrite=False,
-                                                                     initialdir=self.dic_paths.get_output_dir(),
+                                                                     initialdir=self.dic_paths.output_dir,
                                                                      title='Save DIC Grid')
                 
                 if not dic_grid_dir_fname:
                     pass
                 else:
                     try:
-                        self.dic_paths.set_output_dir(os.path.dirname(dic_grid_dir_fname))
+                        self.dic_paths.output_dir = os.path.dirname(dic_grid_dir_fname)
                         self.dic_mats.save_dic_matrices_to_file(dic_grid_dir_fname)
-                    except:
+                    except Exception as e:
                         print("Something failed when saving the grid file")
+                        print(e)
                         pass
             self.save_grid_button = tk.Button(self.window, text="Save Grid", command=save_grid_on_click)
             self.save_grid_button.place(x=820, y=300, height=40, width=160)
@@ -265,6 +270,7 @@ class dic_parameters_selector_widget():
         xv, yv = np.meshgrid(x, y)
         grid_pts = np.vstack([xv.flatten(), yv.flatten()]).T.astype(float)
         self.dic_mats.ref_points = grid_pts
+        self.dic_mats.ref_points_grid_shape = xv.shape
             
         # generate rectangle patches        
         fixed_rect = patches.Rectangle((grid_pts[0, 0] - fcd[0] / 2, grid_pts[0, 1] - fcd[1] / 2), 
@@ -465,42 +471,51 @@ class dic_field_value_widget():
         self.canvas.get_tk_widget().place(x=0, y=0, height=800, width=800)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.window)
         
-        x = self.dic_mats._ref_points[:, 0]
-        y = self.dic_mats._ref_points[:, 1]
-
-        field_data = self.dic_mats.field_data
-
-        field_scatter = self.first_img_ax.scatter(x ,y , s=15, c=field_data, cmap='hsv')
-
-        cbar = plt.colorbar(field_scatter, ax=self.first_img_ax, shrink=0.68)
-        cbar.set_label('Magnitude')
+        self.field_scatter = self.first_img_ax.scatter(0, 0, cmap='hsv')
+        self.cbar = plt.colorbar(self.field_scatter, ax=self.first_img_ax, shrink=0.68)
+        self.cbar.set_label("Field Color Bar")
+        
+        self.Q4_fields = Q4_element_field(dic_matrices=self.dic_mats)
 
         # Add a button for Displacement x
         def displacement_x():
-            print("This function is not yet finished")
+            update_plot(self.Q4_fields.positions, self.Q4_fields.displacements[:, :, 0], cbar_label='Displacement X')
         self.adjust_dic_params_button = tk.Button(self.window, text="Displacement X", command=displacement_x)
         self.adjust_dic_params_button.place(x=820, y=150, height=40, width=160)
 
         def displacement_y():
-            print("This function is not yet finished")
+            update_plot(self.Q4_fields.positions, self.Q4_fields.displacements[:, :, 1], cbar_label='Displacement Y')
         self.adjust_dic_params_button = tk.Button(self.window, text="Displacement Y", command=displacement_y)
         self.adjust_dic_params_button.place(x=820, y=200, height=40, width=160)
 
         def strain_xx():
-            print("This function is not yet finished")
+            update_plot(self.Q4_fields.positions, self.Q4_fields.strains[:, :, 0], cbar_label='Strain XX')
         self.adjust_dic_params_button = tk.Button(self.window, text="Strain XX", command=strain_xx)
         self.adjust_dic_params_button.place(x=820, y=250, height=40, width=160)
 
         def strain_yy():
-            print("This function is not yet finished")
+            update_plot(self.Q4_fields.positions, self.Q4_fields.strains[:, :, 1], cbar_label='Strain YY')
         self.adjust_dic_params_button = tk.Button(self.window, text="Strain YY", command=strain_yy)
         self.adjust_dic_params_button.place(x=820, y=300, height=40, width=160)
 
         def strain_xy():
-            print("This function is not yet finished")
+            update_plot(self.Q4_fields.positions, self.Q4_fields.strains[:, :, 2], cbar_label='Strain XY')
         self.adjust_dic_params_button = tk.Button(self.window, text="Strain XY", command=strain_xy)
         self.adjust_dic_params_button.place(x=820, y=350, height=40, width=160)
         
+        
+        def update_plot(positions, field_data, cbar_label='Magnitude'):
+            self.cbar.remove()
+            self.first_img_ax.cla()
+            self.first_img_ax.imshow(self.first_img, cmap='Greys_r')
+            
+            self.field_scatter = self.first_img_ax.scatter(positions[:, :, 0].flatten(), 
+                                                           positions[:, :, 1].flatten(), 
+                                                           s=15, c=field_data.flatten(), cmap='hsv')
+            self.cbar = plt.colorbar(self.field_scatter, ax=self.first_img_ax, shrink=0.68)
+            self.cbar.set_label(cbar_label)
+            self.canvas.draw()
+            
         
         # Add a button for quitting
         def on_closing(root):
