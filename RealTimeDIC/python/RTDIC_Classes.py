@@ -22,6 +22,7 @@ class dic_matrices():
     def __init__(self, 
                  dic_par_mat=np.array([]), 
                  ref_points=np.array([]), 
+                 ref_points_grid_size=[0, 0],
                  cur_points=np.array([]),
                  output_mat=np.array([]),
                  field_data=np.array([])):
@@ -29,6 +30,7 @@ class dic_matrices():
         # initialize class variables
         self._dic_par_mat = dic_par_mat
         self._ref_points = ref_points
+        self._ref_points_grid_size = ref_points_grid_size
         self._cur_points = cur_points
         self._output_mat = output_mat
         self._field_data = field_data
@@ -50,6 +52,13 @@ class dic_matrices():
         # TODO: Remove temporary code for field_data, only used for testing
         if not self._field_data.size:
             self._field_data = self._ref_points[:, 0] # set to ref x-positions
+    
+    @property
+    def ref_points_grid_size(self):
+        return self._ref_points_grid_size
+    @ref_points_grid_size.setter
+    def ref_points_grid_size(self, ref_points_grid_size):
+        self._ref_points_grid_size = ref_points_grid_size
     
     @property
     def cur_points(self):
@@ -529,3 +538,179 @@ class dic_paths():
         'first_img_num' : self._first_img_num}
         
         return str(class_dict)
+
+class Q4_element_field():
+    def __init__(self, 
+                 dic_matrices=dic_matrices(),
+                 positions=np.array([]),
+                 displacements=np.array([]),
+                 strains=np.array([]),
+                 ):
+        
+        # intialize class variables
+        self._dic_matrices = dic_matrices
+        self._positions = positions
+        self._displacements = displacements
+        self._strains = strains
+        
+        if dic_matrices.cur_points.size != 0:
+            self.calc_displacement_and_strain_field()
+        
+    # setters and getters  
+    @property
+    def dic_matrices(self):
+        return self._dic_matrices
+    @dic_matrices.setter
+    def dic_matrices(self, dic_matrices):
+        self._dic_matrices = dic_matrices
+        
+    @property
+    def positions(self):
+        return self._positions
+    @positions.setter
+    def positions(self, positions):
+        self._positions = positions
+    
+    @property
+    def displacements(self):
+        return self._displacements
+    @displacements.setter
+    def displacements(self, displacements):
+        self._displacements = displacements
+    
+    @property
+    def strains(self):
+        return self._strains
+    @strains.setter
+    def strains(self, strains):
+        self._strains = strains
+    
+    # def N1(X, L):
+    #     return (1 - float(X) / float(L))
+    # def N2(X, L):
+    #     return float(X) / float(L)
+    # def dN1(X, L):
+    #     return -1.0 / float(L)
+    # def dN2(X, L):
+    #     return 1.0 / float(L)
+    
+    def N1(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return ((a/2.0 - t[0]) * (b/2.0 - t[1])) / (a*b)
+    def N2(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return ((a/2.0 + t[0]) * (b/2.0 - t[1])) / (a*b)
+    def N3(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return ((a/2.0 + t[0]) * (b/2.0 + t[1])) / (a*b)
+    def N4(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return ((a/2.0 - t[0]) * (b/2.0 + t[1])) / (a*b)
+    
+    def dN1_x(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return -(b/2.0 - t[1]) / (a*b)
+    def dN2_x(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return (b/2.0 - t[1]) / (a*b)
+    def dN3_x(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return (b/2.0 + t[1]) / (a*b)
+    def dN4_x(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return -(b/2.0 + t[1]) / (a*b)
+    
+    def dN1_y(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return -(a/2.0 - t[0]) / (a*b)
+    def dN2_y(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return -(a/2.0 + t[0]) / (a*b)
+    def dN3_y(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return (a/2.0 + t[0]) / (a*b)
+    def dN4_y(self, xy, n1, n2, n3, n4):
+        a = np.abs(n1[0] - n2[0])
+        b = np.abs(n1[1] - n4[1])
+        t = xy - n1 - np.array([a, b]) / 2
+        return (a/2.0 - t[0]) / (a*b)
+    
+    def N_mat(self, xy, n1, n2, n3, n4):
+        return np.array([[self.N1(xy, n1, n2, n3, n4), 0, self.N2(xy, n1, n2, n3, n4), 0, self.N3(xy, n1, n2, n3, n4), 0, self.N4(xy, n1, n2, n3, n4), 0],
+                         [0, self.N1(xy, n1, n2, n3, n4), 0, self.N2(xy, n1, n2, n3, n4), 0, self.N3(xy, n1, n2, n3, n4), 0, self.N4(xy, n1, n2, n3, n4)]])
+    def B_mat(self, xy, n1, n2, n3, n4):
+        return np.array([[self.dN1_x(xy, n1, n2, n3, n4), 0, self.dN2_x(xy, n1, n2, n3, n4), 0, self.dN3_x(xy, n1, n2, n3, n4), 0, self.dN4_x(xy, n1, n2, n3, n4), 0],
+                         [0, self.dN1_y(xy, n1, n2, n3, n4), 0, self.dN2_y(xy, n1, n2, n3, n4), 0, self.dN3_y(xy, n1, n2, n3, n4), 0, self.dN4_y(xy, n1, n2, n3, n4)],
+                         [self.dN1_y(xy, n1, n2, n3, n4), self.dN1_x(xy, n1, n2, n3, n4), self.dN2_y(xy, n1, n2, n3, n4), self.dN2_x(xy, n1, n2, n3, n4), 
+                          self.dN3_y(xy, n1, n2, n3, n4), self.dN3_x(xy, n1, n2, n3, n4), self.dN4_y(xy, n1, n2, n3, n4), self.dN4_x(xy, n1, n2, n3, n4)]])
+        
+    def calc_displacement_and_strain_field(self):
+        # TODO: eventually read in positions where the field is to be evaluated
+        
+        # grab grid shapes
+        grid_shape = self.dic_matrices.ref_points_grid_shape
+        g_s = [grid_shape[0], grid_shape[1], 2]
+        
+        # grab nodal positions and displacements
+        x = np.copy(self.dic_matrices.ref_points).reshape(g_s)
+        u = np.copy(self.dic_matrices.cur_points - self.dic_matrices.ref_points).reshape(g_s) # [disp_x, disp_y]
+        
+        # initialize FE positions, displacements, and strains
+        ip = 1
+        jp = 1
+        positions = np.zeros([grid_shape[0] - ip, grid_shape[1] - jp, 2]) # [x, y]
+        displacements = np.zeros([grid_shape[0] - ip, grid_shape[1] - jp, 2]) # [disp_x, disp_y]
+        strains = np.zeros([grid_shape[0] - ip, grid_shape[1] - jp, 3]) # [e_xx, e_yy, e_xy]
+        
+        # do FE calculation for each position
+        for i in range(grid_shape[0] - ip):
+            for j in range(grid_shape[1] - jp):
+                # gather nodal indices for element
+                n1 = (i+0, j+0)
+                n2 = (i+0, j+jp)
+                n3 = (i+ip, j+jp)
+                n4 = (i+ip, j+0)
+                
+                # gather position to evaluate on
+                xy = np.mean(np.vstack([x[n1], x[n3]]), axis=0)
+                
+                # assemble nodal disp, shape function mat (N), and 
+                # derivative shape function mat (B)
+                N = self.N_mat(xy, x[n1], x[n2], x[n3], x[n4])
+                B = self.B_mat(xy, x[n1], x[n2], x[n3], x[n4])
+                disp = np.hstack([u[n1], u[n2], u[n3], u[n4]]).flatten()
+                
+                # set pos, disp, and strain results
+                positions[i, j, :] = xy
+                displacements[i, j, :] = N @ disp
+                strains[i, j, :] = B @ disp
+        
+        
+        
+        self.positions = positions
+        self.displacements = displacements
+        self.strains = strains
+        return positions, displacements, strains
+    
