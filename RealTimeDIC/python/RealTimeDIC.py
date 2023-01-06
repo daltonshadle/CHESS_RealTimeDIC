@@ -21,14 +21,21 @@ from RTDIC_Widgets import dic_parameters_selector_widget, dic_continuous_update_
 #*****************************************************************************
 #%% USER INPUT
 
-raw_dir = "/Users/jacksonearls/documents/GitHub/CHESS_RealTimeDIC/example/"
-aux_dir = "/Users/jacksonearls/documents/GitHub/CHESS_RealTimeDIC/example/"
-output_fname = 'dictest_output.txt'
-img_template = 'dic_%06i.tiff'
+raw_dir = "/nfs/chess/raw/2022-3/id1a3/miller-3528-a/ff-c103-90-s2-2/"
+aux_dir = "/nfs/chess/aux/cycles/2022-3/id1a3/miller-3528-a/ff-c103-90-s2-2/"
+output_fname = 'c103-90-s2-2_dic.txt'
+img_template = 'dic_%06i.tif'
 sample_width = 1 # (mm) cross-sectional width of the sample for macro stress calculations
 sample_thickness = 1 # (mm) cross-sectional thickness of the sample for macro stress calculations
 sample_orientation_in_img = 'v' # describes sample orientaiton in image, 
                                 # can be 'v' = vertical, 'h'=horizontal
+
+# FOR NON-GUI SELCTION OF PATHS 
+# - OK TO BE LEFT AS NONE IF NOT USING
+# - MUST BE THE FULL PATH AND FILE NAME DIR
+dic_json_dir = '/nfs/chess/raw/2022-3/id1a3/miller-3528-a/ff-c103-90-s2-2/dic.json' #''
+dic_par_dir = '/nfs/chess/raw/2022-3/id1a3/miller-3528-a/ff-c103-90-s2-2/dic.par' #''
+first_img_dir = None #'/nfs/chess/raw/2022-3/id1a3/miller-3528-a/ff-c103-90-s2-2/snapshots/dic/dic_000102.tif' #''
 
 #*****************************************************************************
 #%% INITIALIZE OBJECTS
@@ -40,14 +47,13 @@ exp_dic_paths = dic_paths(base_dir=raw_dir, dic_json_dir=raw_dir, dic_par_dir=ra
                           output_fname=output_fname)
 exp_dic_mats = dic_matrices()
 
-
 #*****************************************************************************
 #%% OPEN DIC PAR FILE AND CORRESPONDING JSON FILE
-exp_dic_paths.open_dic_par_file(exp_dic_mats)
+exp_dic_paths.open_dic_par_file(exp_dic_mats, dic_json_dir=dic_json_dir, dic_par_dir=dic_par_dir)
 
 #*****************************************************************************
 #%% SELECT FIRST IMAGE / REFERENCE IMAGE
-exp_dic_paths.open_first_image()
+exp_dic_paths.open_first_image(first_img_dir=first_img_dir)
 
 #*****************************************************************************
 #%% SET CONTROL POINT GRID AND DIC PARAMTERS
@@ -68,7 +74,8 @@ for i, cur_img_num in enumerate(img_nums):
     cur = exp_dic_mats.get_dic_par_mat_at_img_num(cur_img_num)
     cur_img_num = cur[0]
     cur_force = cur[1]
-    cur_screw = cur[2]
+    cur_screw = cur[2] # TODO : REMOVE SCREW POSITION
+    cur_load_step_num = cur[2]
     cur_img_dir = exp_dic_paths.get_img_num_dir(cur_img_num)
     
     if i == 0:
@@ -91,7 +98,8 @@ for i, cur_img_num in enumerate(img_nums):
                                          cur_strain_xx,
                                          cur_strain_yy,
                                          cur_strain_xy,
-                                         cur_screw]))
+                                         cur_screw,
+                                         cur_load_step_num]))
     
     # display to screen
     if exp_dic_params.is_sample_horizontal():

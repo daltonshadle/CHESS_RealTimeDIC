@@ -199,13 +199,13 @@ class dic_parameters_selector_widget():
         self.fixed_width_slider = tk.Scale(self.window, label='Fixed Box Width', 
                                           command=fixed_slider_change,
                                           orient='horizontal',
-                                          from_=20, to=200)
+                                          from_=20, to=400)
         self.fixed_width_slider.place(x=820, y=450, height=50, width=160)
         
         self.fixed_height_slider = tk.Scale(self.window, label='Fixed Box Height', 
                                            command=fixed_slider_change,
                                            orient='horizontal',
-                                           from_=20, to=200)
+                                           from_=20, to=400)
         self.fixed_height_slider.place(x=820, y=500, height=50, width=160)
         
         # add slider for moving corr dimen
@@ -218,13 +218,13 @@ class dic_parameters_selector_widget():
         self.moving_width_slider = tk.Scale(self.window, label='Moving Box Width', 
                                           command=moving_slider_change,
                                           orient='horizontal',
-                                          from_=20, to=200)
+                                          from_=20, to=300)
         self.moving_width_slider.place(x=820, y=550, height=50, width=160)
         
         self.moving_height_slider = tk.Scale(self.window, label='Moving Box Height', 
                                            command=moving_slider_change,
                                            orient='horizontal',
-                                           from_=20, to=200)
+                                           from_=20, to=300)
         self.moving_height_slider.place(x=820, y=600, height=50, width=160)
         
         
@@ -393,7 +393,8 @@ class dic_continuous_update_widget():
         cur = self.dic_mats.get_dic_par_mat_at_img_num(self.cur_img_num)
         cur_img_num = cur[0]
         cur_force = cur[1]
-        cur_screw = cur[2]
+        cur_screw = cur[2] # TODO : REMOVE SCREW POSITION
+        cur_load_step_num = cur[2]
         cur_img_dir = self.dic_paths.get_img_num_dir(self.cur_img_num)
         
         # process the rest of the images
@@ -410,7 +411,8 @@ class dic_continuous_update_widget():
                             cur_strain_xx,
                             cur_strain_yy,
                             cur_strain_xy,
-                            cur_screw])
+                            cur_screw,
+                            cur_load_step_num])
         
         
         if self.reprocess:
@@ -471,7 +473,7 @@ class dic_field_value_widget():
         self.canvas.get_tk_widget().place(x=0, y=0, height=800, width=800)
         self.toolbar = NavigationToolbar2Tk(self.canvas, self.window)
         
-        self.field_scatter = self.first_img_ax.scatter(0, 0, cmap='hsv')
+        self.field_scatter = self.first_img_ax.scatter(0, 0, cmap='viridis')
         self.cbar = plt.colorbar(self.field_scatter, ax=self.first_img_ax, shrink=0.68)
         self.cbar.set_label("Field Color Bar")
         
@@ -511,7 +513,7 @@ class dic_field_value_widget():
             
             self.field_scatter = self.first_img_ax.scatter(positions[:, :, 0].flatten(), 
                                                            positions[:, :, 1].flatten(), 
-                                                           s=15, c=field_data.flatten(), cmap='hsv')
+                                                           s=15, c=field_data.flatten(), cmap='viridis')
             self.cbar = plt.colorbar(self.field_scatter, ax=self.first_img_ax, shrink=0.68)
             self.cbar.set_label(cbar_label)
             self.canvas.draw()

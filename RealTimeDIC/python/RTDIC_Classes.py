@@ -162,9 +162,10 @@ class dic_matrices():
         return [cur_stress, cur_strain_xx, cur_strain_yy, cur_strain_xy]
     
     def add_to_output(self, cur_array):
-        # img_num, stress, strain_xx, strain_yy, strain_xy, screw_pos
+        # TODO : not have this hardcoded, read as a dictionary with json file
+        # dic_img_num, stress, strain_xx, strain_yy, strain_xy, screw_pos, load_step number
         cur_array = np.atleast_2d(cur_array)
-        if cur_array.shape[1] != 6:
+        if cur_array.shape[1] != 7:
             cur_array = cur_array.T
         if self._output_mat.size == 0:
             self._output_mat = cur_array
@@ -172,9 +173,9 @@ class dic_matrices():
             self._output_mat = np.vstack([self._output_mat, cur_array])
     
     def replace_in_output(self, cur_array, img_num):
-        # img_num, stress, strain_xx, strain_yy, strain_xy, screw_pos
+        # img_num, stress, strain_xx, strain_yy, strain_xy, screw_pos, load_step_number
         cur_array = np.atleast_2d(cur_array)
-        if cur_array.shape[1] != 6:
+        if cur_array.shape[1] != 7:
             cur_array = cur_array.T
         try:
             [o, img_idx] = self.get_output_mat_at_img_num(img_num, return_idx=True)
@@ -448,22 +449,28 @@ class dic_paths():
         self._first_img_num = first_img_num 
     
     # extra functions
-    def open_dic_par_file(self, dic_mats):
+    def open_dic_par_file(self, dic_mats, dic_json_dir=None, dic_par_dir=None):
         root = tk.Tk()
         root.withdraw()
         # user selects json file to use
-        dic_json_dir = tk.filedialog.askopenfilename(initialdir=self._dic_json_dir,
-                                                    defaultextension=".json",
-                                                    filetypes=[("dic json files", "*.json"),
-                                                               ("All Files", "*.*")],
-                                                    title="Select dic.json File")
+        if dic_json_dir is not None and os.path.exists(dic_json_dir):
+            print("DIC JSON FILE FOUND")
+        else:
+            dic_json_dir = tk.filedialog.askopenfilename(initialdir=self._dic_json_dir,
+                                                        defaultextension=".json",
+                                                        filetypes=[("dic json files", "*.json"),
+                                                                   ("All Files", "*.*")],
+                                                        title="Select dic.json File")
         # user selects par file to use
-        dic_par_dir = tk.filedialog.askopenfilename(initialdir=self._dic_par_dir, 
-                                                    defaultextension='.par',
-                                                    filetypes=[("dic par files", "*.par"),
-                                                               ("All Files", "*.*")],
-                                                    title='Select dic.par File')
-        if not dic_par_dir:
+        if dic_par_dir is not None and os.path.exists(dic_par_dir):
+            print("DIC PAR FILE FOUND")
+        else:
+            dic_par_dir = tk.filedialog.askopenfilename(initialdir=self._dic_par_dir, 
+                                                        defaultextension='.par',
+                                                        filetypes=[("dic par files", "*.par"),
+                                                                   ("All Files", "*.*")],
+                                                        title='Select dic.par File')
+        if not dic_json_dir and not dic_par_dir:
             quit()
         else:
             try:
@@ -471,17 +478,16 @@ class dic_paths():
                 self.dic_json_fname = os.path.basename(dic_json_dir)
                 json_file = open(dic_json_dir)
                 json_dict = json.load(json_file)
-                i = 0
+                
                 print("\nColumn and Key Pairs for dic.par")
                 print(*json_dict.items())
                 
-                prompt_item_list = ['Image Number', 'Load', 'Screw Position']
-                while 3 > i:
+                prompt_item_list = ['Image Number', 'Load Newtons', 'Load Step Number']
+                for i in range(len(prompt_item_list)):
                     prompt = input("\nChose %s column to import. Press q to quit. \n" %(prompt_item_list[i]))
                     if input == "q":
                         break
                     self.json_col_nums[i] = int(prompt)
-                    i+=1
                 self.dic_par_dir = os.path.dirname(dic_par_dir)
                 self.dic_par_fname = os.path.basename(dic_par_dir)
                 dic_mats.process_dic_par_file(dic_par_dir, self.json_col_nums)
@@ -489,16 +495,19 @@ class dic_paths():
                 print(e)
                 self.open_dic_par_file(dic_mats)
     
-    def open_first_image(self):
+    def open_first_image(self, first_img_dir=None):
         root = tk.Tk()
         root.withdraw()
         
-        first_img_dir = tk.filedialog.askopenfilename(initialdir=self._img_dir, 
-                                                    defaultextension='.tiff',
-                                                    filetypes=[("TIFF Files", "*.tiff"),
-                                                               ("TIFF Files", "*.tif"),
-                                                               ("All Files", "*.*")],
-                                                    title='Select First DIC Image File')
+        if first_img_dir is not None and os.path.exists(first_img_dir):
+            print("FIRST IMAGE FILE FOUND")
+        else:
+            first_img_dir = tk.filedialog.askopenfilename(initialdir=self._img_dir, 
+                                                        defaultextension='.tiff',
+                                                        filetypes=[("TIFF Files", "*.tiff"),
+                                                                   ("TIFF Files", "*.tif"),
+                                                                   ("All Files", "*.*")],
+                                                        title='Select First DIC Image File')
         
         if not first_img_dir:
             quit()
